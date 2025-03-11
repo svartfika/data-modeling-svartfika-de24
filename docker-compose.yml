@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:latest
+    container_name: db_data_modeling
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+      # - "5432:5432"
+    volumes:
+      - db_data_modeling:/var/lib/postgresql/data
+      # - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "localhost", "-U", "${POSTGRES_USER:-postgres}", "-d", "${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+volumes:
+  db_data_modeling:
