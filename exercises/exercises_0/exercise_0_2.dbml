@@ -1,0 +1,44 @@
+Table Library {
+    library_id serial [pk]
+    name varchar
+}
+
+Table Member {
+    member_id serial [pk]
+    library_id int
+    name varchar
+}
+
+Ref: Member.library_id <> Library.library_id 
+
+Table Author {
+    author_id serial [pk]
+    name varchar
+}
+
+Table Book {
+    book_id serial [pk]
+    library_id int
+    title varchar
+    isbn varchar
+}
+
+Ref: Book.library_id > Library.library_id 
+
+Table AuthorBook {
+    author_id int
+    book_id int
+}
+
+Ref: AuthorBook.author_id > Author.author_id
+Ref: AuthorBook.book_id > Book.book_id
+
+Table Loan {
+    loan_id serial [pk]
+    book_id int
+    member_id int
+    loan_date date
+}
+
+Ref: Loan.book_id > Book.book_id
+Ref: Loan.member_id > Member.member_id
