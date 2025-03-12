@@ -1,0 +1,39 @@
+// {
+//   "hospital": "Sjukhusstock",
+//   "address": "Drottninggatan 3, Stockholm",
+//   "departments": [
+//     {
+//       "name": "Kardiologi",
+//       "doctors": [
+//         { "id": 1, "name": "Dr. Abra Abrahamson" },
+//         { "id": 2, "name": "Dr. Erika Eriksson" }
+//       ]
+//     },
+//     {
+//       "name": "Neurologi",
+//       "doctors": [{ "id": 3, "name": "Dr. Sven Svensson" }]
+//     }
+//   ]
+// }
+
+
+Table hospital {
+    id serial [pk]
+    name varchar
+    address varchar
+}
+
+Table department {
+    id serial [pk]
+    name varchar
+    hospital_id int
+}
+
+Table doctor {
+    id serial [pk]
+    name varchar
+    department_id int
+}
+
+Ref: department.hospital_id > hospital.id
+Ref: doctor.department_id > department.id
