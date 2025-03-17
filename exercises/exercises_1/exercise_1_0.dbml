@@ -1,0 +1,38 @@
+Table hospital {
+    hospital_id serial [pk]
+    hospital_name varchar
+}
+
+Table department {
+    department_id serial [pk]
+    department_name varchar
+}
+
+Table hospital_department {
+    hospital_id int
+    department_id int
+}
+
+Table doctor {
+    doctor_id serial [pk]
+    doctor_name varchar
+}
+
+Table hospital_doctor {
+    hospital_id int
+    doctor_id int
+}
+
+Table department_doctor {
+    department_id int
+    doctor_id int
+}
+
+Ref: hospital.hospital_id < hospital_department.hospital_id
+Ref: department.department_id < hospital_department.department_id
+
+Ref: hospital.hospital_id < hospital_doctor.hospital_id
+Ref: doctor.doctor_id < hospital_doctor.doctor_id
+
+Ref: department.department_id < department_doctor.department_id
+Ref: doctor.doctor_id < department_doctor.doctor_id
