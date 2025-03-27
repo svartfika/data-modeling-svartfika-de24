@@ -14,6 +14,9 @@ erDiagram
     EMPLOYEE ||--o| TEACHER : "is"
     EMPLOYEE ||--o| MANAGER : "is"
 
+    EMPLOYEE ||--o| CONSULTANT : "is classified as"
+    EMPLOYEE ||--o| FULL-TIME : "is classified as"
+
     MANAGER  ||--|{ PROGRAM : "manages"
     TEACHER  ||--o{ COURSE : "teaches"
 ```
