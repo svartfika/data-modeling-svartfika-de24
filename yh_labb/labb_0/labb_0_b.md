@@ -104,11 +104,6 @@ Konceptuella entiteter:
 
 ```mermaid
 erDiagram
-    PERSON
-    EMPLOYEE
-    TEACHER
-    MANAGER
-
     PERSON }o--o{ EMPLOYEE : "is employed"
     EMPLOYEE }o--o{ TEACHER : "has role"
     EMPLOYEE }o--o{ MANAGER : "has role"
@@ -118,9 +113,6 @@ erDiagram
 
 ```mermaid
 erDiagram
-    PERSON
-    STUDENT
-
     PERSON }o--o{ STUDENT : "is a"
 ```
 
@@ -163,13 +155,164 @@ erDiagram
 
 ```mermaid
 erDiagram
-    PERSON ||--o{ AFFILIATION : ""
-    AFFILIATION ||--o| EMPLOYEE : "is affiliated as"
-    AFFILIATION ||--o| STUDENT : "is affiliated as"
+    PERSON      ||--|| AFFILIATION : "has"
+    AFFILIATION ||--|{ EMPLOYEE : "role defined as"
+    AFFILIATION ||--|{ STUDENT : "role defined as"
 
-    EMPLOYEE }o--o{ TEACHER : "may have the role"
-    EMPLOYEE }o--o{ MANAGER : "may have the role"
+    EMPLOYEE ||--o| TEACHER : "is"
+    EMPLOYEE ||--o| MANAGER : "is"
 
-    EMPLOYEE ||--o| "CONSULTANT" : "may be"
-    EMPLOYEE ||--o| "FULL-TIME" : "may be"
+    EMPLOYEE ||--o| CONSULTANT : "is classified as"
+    EMPLOYEE ||--o| FULL-TIME : "is classified as"
+```
+
+---
+
+#### Branch-level enteties
+
+```mermaid
+erDiagram
+    BRANCH
+    EMPLOYEE
+    PROGRAM
+    COURSE
+```
+
+#### Cardinality
+
+```mermaid
+erDiagram
+    BRANCH   ||--o{ PROGRAM : "offers"
+    PROGRAM  ||--o{ COURSE : "contains"
+
+    BRANCH   ||--o{ EMPLOYEE : "employs"
+    EMPLOYEE ||--|{ PROGRAM : "manages"
+    EMPLOYEE ||--o{ COURSE : "teaches"
+```
+
+> a branch offers *one or more programs*  
+> a program is in *one branch* only  
+> (a program *is not* in many branch locations)  
+> branch to program  
+> *one branch* to *one or more programs*  
+> branch *one-to-zero/many* programs  
+
+> *a program* contains *many courses*  
+> a course is in exactly *one program*  
+> one program *has many* courses  
+> program *one-to-zero/many* courses  
+
+> *a branch* employs *many employees*  
+> *an employee* is employed to *exactly one branch*  
+> *one branch* to *many employees*  
+> branch *one-to-zero/many* employees  
+
+> *an employee* can manage *zero or one programs*  
+> *one program* can be managed my *one employee* 
+> *one program* can not have *zero managers* 
+> an employee *one-to-zero/one*  
+
+> *one course* can be run by *one teacher/employee*  
+> *one employee/teacher* can teach *many courses*  
+> one employee *one-to-zero/many* courses  
+
+#### Adding student
+
+```mermaid
+erDiagram
+    PROGRAM  ||--o{ STUDENT : "has enrolled"
+    STUDENT  }o--o{ COURSE : "participate in"
+    PROGRAM  ||--o{ COURSE : "contains"
+```
+> *one student* can be in only *one program*
+> *one prgoram* can have *many students*
+
+```mermaid
+erDiagram
+    PROGRAM  ||--o{ STUDENT : "has enrolled"
+    STUDENT  }o--o{ COURSE : "participate in"
+
+    BRANCH   ||--o{ PROGRAM : "offers"
+    PROGRAM  ||--o{ COURSE : "contains"
+    COURSE   }o--|| EMPLOYEE : "is taught by"
+
+    BRANCH   ||--o{ EMPLOYEE : "employs"
+    EMPLOYEE ||--|{ PROGRAM : "manages"
+    EMPLOYEE ||--o{ COURSE : "teaches"
+```
+
+#### Adding teacher/manager
+```mermaid
+erDiagram
+    EMPLOYEE ||--o| TEACHER : "is"
+    EMPLOYEE ||--o| MANAGER : "is"
+```
+
+```mermaid
+erDiagram
+    PROGRAM  ||--o{ STUDENT : "has enrolled"
+    STUDENT  }o--o{ COURSE : "participate in"
+
+    BRANCH   ||--o{ PROGRAM : "offers"
+    PROGRAM  ||--o{ COURSE : "contains"
+
+    BRANCH   ||--o{ EMPLOYEE : "employs"
+    EMPLOYEE ||--o| TEACHER : "is"
+    EMPLOYEE ||--o| MANAGER : "is"
+
+    MANAGER  ||--|{ PROGRAM : "manages"
+    TEACHER  ||--o{ COURSE : "teaches"
+```
+
+#### Addid affiliation
+
+```mermaid
+erDiagram
+    PERSON      ||--|| AFFILIATION : "has"
+    AFFILIATION ||--|{ EMPLOYEE : "role defined as"
+    AFFILIATION ||--|{ STUDENT : "role defined as"
+```
+
+```mermaid
+erDiagram
+    PERSON      ||--|| AFFILIATION : "has"
+    AFFILIATION ||--|{ EMPLOYEE : "role defined as"
+    AFFILIATION ||--|{ STUDENT : "role defined as"
+
+    PROGRAM  ||--o{ STUDENT : "has enrolled"
+    STUDENT  }o--o{ COURSE : "participate in"
+
+    BRANCH   ||--o{ PROGRAM : "offers"
+    PROGRAM  ||--o{ COURSE : "contains"
+
+    BRANCH   ||--o{ EMPLOYEE : "employs"
+    EMPLOYEE ||--o| TEACHER : "is"
+    EMPLOYEE ||--o| MANAGER : "is"
+
+    MANAGER  ||--|{ PROGRAM : "manages"
+    TEACHER  ||--o{ COURSE : "teaches"
+```
+
+---
+
+#### Beta version
+
+```mermaid
+erDiagram
+    PERSON      ||--|| AFFILIATION : "has"
+    AFFILIATION ||--|{ EMPLOYEE : "role defined as"
+    AFFILIATION ||--|{ STUDENT : "role defined as"
+
+    PROGRAM  ||--o{ STUDENT : "has enrolled"
+    STUDENT  }o--o{ COURSE : "participate in"
+
+    BRANCH   ||--o{ PROGRAM : "offers"
+    PROGRAM  ||--o{ COURSE : "contains"
+
+    BRANCH   ||--o{ EMPLOYEE : "employs"
+    EMPLOYEE ||--o| TEACHER : "is"
+    EMPLOYEE ||--o| MANAGER : "is"
+
+    MANAGER  ||--|{ PROGRAM : "manages"
+    TEACHER  ||--o{ COURSE : "teaches"
 ```
