@@ -1,24 +1,30 @@
 ```mermaid
+---
+    config:
+        layout: elk
+---
 erDiagram
-    BRANCH  ||--|{ MODULE : "hosts"
-    BRANCH  }o--o{ PROGRAM : "offers"
-    PROGRAM ||--o{ MODULE : "includes"
-    MODULE  ||--|{ COURSE : "contains"
+direction TB
 
-    PERSON      ||--|| AFFILIATION : "has"
-    AFFILIATION ||--|{ EMPLOYEE : "role defined as"
-    AFFILIATION ||--|{ STUDENT : "role defined as"
+BRANCH  ||--|{ MODULE : "hosts"
+BRANCH  }o--o{ PROGRAM : "offers"
+PROGRAM ||--o{ MODULE : "includes"
+MODULE  ||--|{ COURSE : "contains"
 
-    BRANCH   ||--o{ EMPLOYEE : "employs"
-    EMPLOYEE ||--o| TEACHER : "is"
-    EMPLOYEE ||--o| MANAGER : "is"
+PERSON      ||--|| AFFILIATION : "has"
+AFFILIATION ||--|{ EMPLOYEE : "role defined as"
+AFFILIATION ||--|{ STUDENT : "role defined as"
 
-    EMPLOYEE ||--o| CONSULTANT : "is classified as"
-    EMPLOYEE ||--o| FULL-TIME : "is classified as"
+BRANCH   ||--o{ EMPLOYEE : "employs"
+EMPLOYEE ||--o| TEACHER : "is"
+EMPLOYEE ||--o| MANAGER : "is"
 
-    MANAGER  ||--|{ PROGRAM : "manages"
-    TEACHER  ||--o{ COURSE : "teaches"
+EMPLOYEE ||--o| CONSULTANT : "is classified as"
+EMPLOYEE ||--o| FULL-TIME : "is classified as"
 
-    PROGRAM  |o--o{ STUDENT : "has enrolled"
-    STUDENT  }o--o{ COURSE : "participate in"
+MANAGER  ||--|{ PROGRAM : "manages"
+TEACHER  ||--o{ COURSE : "teaches"
+
+PROGRAM  |o--o{ STUDENT : "has enrolled"
+STUDENT  }o--o{ COURSE : "participate in"
 ```
