@@ -1,5 +1,9 @@
-```mermaid
+---
+    config:
+        layout: elk
+---
 erDiagram
+direction TB
     BRANCH  ||--|{ MODULE : "hosts"
     BRANCH  }o--o{ PROGRAM : "offers"
     PROGRAM ||--o{ MODULE : "includes"
@@ -21,4 +25,3 @@ erDiagram
 
     PROGRAM  |o--o{ STUDENT : "has enrolled"
     STUDENT  }o--o{ COURSE : "participate in"
-```
