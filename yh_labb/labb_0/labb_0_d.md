@@ -903,14 +903,14 @@ CONSULTANT {
   _ employee_id
   _ org_name
   _ org_number
-  boolean f_skatt
+  _ f_skatt
   _ address
-  decimal rate
+  _ rate
 }
 
 FULL_TIME {
   _ employee_id
-  decimal salary
+  _ salary
   _ hours_weekly
 }
 
