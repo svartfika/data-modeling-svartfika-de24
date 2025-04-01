@@ -964,3 +964,209 @@ CohortManager {
   _ manager_id
 }
 ```
+
+---
+
+#### Adding more fields
+
+```mermaid
+erDiagram
+
+
+
+PERSON ||--o{ AFFILIATION : has
+AffiliationRole ||--o{ AFFILIATION : defines
+AFFILIATION ||--o{ EMPLOYEE : employs
+AFFILIATION ||--o{ STUDENT : enrolls
+
+EmployeeCategory ||--o{ EMPLOYEE : categorizes
+
+PROGRAM ||--o{ STUDENT : enrolls
+PROGRAM ||--o{ ProgramBranch : includes
+BRANCH ||--o{ ProgramBranch : hosts
+
+BRANCH ||--o{ EMPLOYEE : employs
+BRANCH ||--o{ MODULE : hosts
+
+ModuleType ||--o{ MODULE : classifies
+
+
+
+EMPLOYEE ||--o| CONSULTANT : is
+EMPLOYEE ||--o| FULL_TIME : is
+EMPLOYEE ||--o| TEACHER : is
+EMPLOYEE ||--o| MANAGER : is
+
+MODULE ||--o{ ModuleProgram : includes
+PROGRAM ||--o{ ModuleProgram : includes
+
+MODULE ||--o{ COURSE : contains
+
+STUDENT ||--o{ CourseStudent : takes
+COURSE ||--o{ CourseStudent : has
+
+TEACHER ||--o{ CourseTeacher : teaches
+COURSE ||--o{ CourseTeacher : has
+
+COHORT ||--o{ StudentCohort : groups
+STUDENT ||--o{ StudentCohort : "belongs to"
+
+MANAGER ||--o{ CohortManager : manages
+COHORT ||--o{ CohortManager : has
+
+
+
+PERSON {
+  _ person_id
+  _ last_name
+  _ first_name
+  _ identity_number
+  _ address
+  _ phone
+  _ email_private
+}
+
+AffiliationRole {
+  _ affiliation_role_id
+  _ name
+  _ description
+}
+
+AFFILIATION {
+  _ affiliation_id
+  _ person_id
+  _ affiliation_role_id
+}
+
+EmployeeCategory {
+  _ employee_category_id
+  _ name
+  _ description
+}
+
+EMPLOYEE {
+  _ employee_id
+  _ affiliation_id
+  _ employee_category_id
+  _ branch_id
+  _ date_start
+  _ date_end
+}
+
+STUDENT {
+  _ student_id
+  _ affiliation_id
+  _ program_id
+  _ email_internal
+}
+
+PROGRAM {
+  _ program_id
+  _ name
+  _ code
+  _ cycle
+  _ description
+  _ date_start
+  _ date_end
+}
+
+BRANCH {
+  _ branch_id
+  _ name
+  _ city
+  _ address
+}
+
+ModuleType {
+  _ module_type_id
+  _ name
+  _ description
+}
+
+MODULE {
+  _ module_id
+  _ module_type_id
+  _ branch_id
+  _ name
+  _ code
+  _ description
+  _ date_start
+  _ date_end
+}
+
+COURSE {
+  _ course_id
+  _ module_id
+  _ name
+  _ code
+  _ credits
+  _ description
+  _ date_start
+  _ date_end
+}
+
+CONSULTANT {
+  _ employee_id
+  _ org_name
+  _ org_number
+  _ f_skatt
+  _ address
+  _ rate
+}
+
+FULL_TIME {
+  _ employee_id
+  _ salary
+  _ hours_weekly
+}
+
+TEACHER {
+  _ teacher_id
+  _ employee_id
+}
+
+MANAGER {
+  _ manager_id
+  _ employee_id
+}
+
+ProgramBranch {
+  _ program_branch_id
+  _ program_id
+  _ branch_id
+}
+
+ModuleProgram {
+  _ module_program_id
+  _ module_id
+  _ program_id
+}
+
+CourseTeacher {
+  _ course_teacher_id
+  _ course_id
+  _ teacher_id
+}
+
+CourseStudent {
+  _ course_student_id
+  _ course_id
+  _ student_id
+}
+
+COHORT {
+  _ cohort_id
+}
+
+StudentCohort {
+  _ cohort_student_id
+  _ cohort_id
+  _ student_id
+}
+
+CohortManager {
+  _ cohort_manager_id
+  _ cohort_id
+  _ manager_id
+}
+```
