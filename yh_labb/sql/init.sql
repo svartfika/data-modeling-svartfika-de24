@@ -3,6 +3,8 @@ SET search_path TO yh ;
 
 
 
+-- MAIN ENTITIES
+
 CREATE TABLE IF NOT EXISTS yh.person (
     person_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     last_name varchar(100) NOT NULL,
@@ -157,6 +159,8 @@ CREATE TABLE IF NOT EXISTS yh.cohort (
 
 
 
+-- JOINT TABLES
+
 CREATE TABLE IF NOT EXISTS yh.program_branch (
     program_branch_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     program_id bigint NOT NULL REFERENCES yh.program (program_id),
@@ -202,3 +206,19 @@ CREATE TABLE IF NOT EXISTS yh.student_cohort (
     cohort_id bigint NOT NULL REFERENCES yh.cohort (cohort_id),
     UNIQUE (student_id, cohort_id)
 ) ;
+
+
+
+-- DEFAULT VALUES
+
+INSERT INTO yh.affiliation_role (name) 
+VALUES ('EMPLOYEE'), ('STUDENT')
+ON CONFLICT (name) DO NOTHING ;
+
+INSERT INTO yh.employment_category (name) 
+VALUES ('CONSULTANT'), ('FULL_TIME')
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO yh.module_type (name) 
+VALUES ('EXTRA'), ('PROGRAM'), ('WORKSHOP')
+ON CONFLICT (name) DO NOTHING;
