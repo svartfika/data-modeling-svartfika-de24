@@ -5,12 +5,13 @@ SET search_path TO yh ;
 
 CREATE TABLE IF NOT EXISTS yh.person (
     person_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    last_name VARCHAR,
-    first_name VARCHAR,
-    identity_number VARCHAR,
-    address TEXT,
-    phone VARCHAR,
-    email_private VARCHAR
+    last_name varchar(100) NOT NULL,
+    first_name varchar(100) NOT NULL,
+    identity_number varchar(100) NOT NULL,
+    address text NOT NULL,
+    phone varchar NOT NULL,
+    email_private varchar NOT NULL,
+    UNIQUE (identity_number)
 ) ;
 
 
