@@ -1,9 +1,12 @@
 from pprint import pprint
-from pydantic import BaseModel, Field, SecretStr
+
+from mimesis.providers.person import Person as PersonProvider
+from mimesis.providers.address import Address as AddressProvider
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import URL, create_engine, inspect
-from sqlalchemy.orm import Session
+from sqlalchemy import URL, create_engine, select
 from sqlalchemy.ext.automap import automap_base, AutomapBase
+from sqlalchemy.orm import Session
 
 
 class PostgresSettings(BaseSettings):
@@ -48,8 +51,8 @@ engine = create_engine(postgres_url)
 
 
 Base: AutomapBase = automap_base()
-
 Base.prepare(autoload_with=engine, schema=settings.database.dbschema)
+
 
 Person = Base.classes.person
 
@@ -80,6 +83,26 @@ CourseStudent = Base.classes.course_student
 CohortManager = Base.classes.cohort_manager
 StudentCohort = Base.classes.student_cohort
 
+
+def add_person(s: Session) -> int:
+    fake_person = PersonProvider()
+    fake_address = AddressProvider()
+
+    person = Person(
+        last_name=fake_person.last_name(),
+        first_name=fake_person.first_name(),
+        identity_number=fake_person.identifier("########-####"),
+        address=fake_address.address(),
+        phone=fake_person.phone_number(),
+        email_private=fake_person.email(),
+    )
+
+    s.add(person)
+    s.flush()
+
+
 with Session(engine) as s:
-    inspector = inspect(engine)
-    pprint(inspector.get_table_names(settings.database.dbschema))
+    add_person(s)
+
+    x = s.scalars(select(AffiliationRole))
+    pprint([i.affiliation_role_id for i in x.all()])
