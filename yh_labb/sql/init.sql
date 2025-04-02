@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS yh.employment (
     affiliation_id bigint NOT NULL REFERENCES yh.affiliation (affiliation_id),
     employment_category_id bigint NOT NULL REFERENCES yh.employment_category (employment_category_id),
     date_start date NOT NULL,
-    date_end date,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (affiliation_id, employment_category_id, date_start)
 ) ;
 
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS yh.program (
     cycle smallint NOT NULL CHECK (cycle BETWEEN 1 AND 3),
     description text,
     date_start date NOT NULL,
-    date_end date,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (code, cycle, date_start)
 ) ;
 
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS yh.module (
     code varchar(100) NOT NULL,
     description text,
     date_start date NOT NULL,
-    date_end date,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (branch_id, code, date_start) 
 ) ;
 
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS yh.course (
     credits smallint NOT NULL,
     description text,
     date_start date NOT NULL,
-    date_end date,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (module_id, code, date_start)
 ) ;
 
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS yh.student (
     program_id bigint NOT NULL REFERENCES yh.program (program_id),
     email_internal varchar(100) NOT NULL,
     date_start date NOT NULL,
-    date_end date,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (affiliation_id, program_id, date_start)
 ) ;
 
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS yh.cohort (
     name varchar(100) NOT NULL,
     code varchar(100) NOT NULL,
     date_start date NOT NULL,
-    date_end date,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (program_id, code, date_start)
 ) ;
 
