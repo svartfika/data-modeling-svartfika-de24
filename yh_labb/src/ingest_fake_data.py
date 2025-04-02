@@ -1,10 +1,12 @@
 from pprint import pprint
+import random
+from typing import Literal
 
 from mimesis.providers.person import Person as PersonProvider
 from mimesis.providers.address import Address as AddressProvider
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import URL, create_engine, select
+from sqlalchemy import URL, create_engine, inspect, select
 from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.orm import Session
 
@@ -100,9 +102,57 @@ def add_person(s: Session) -> int:
     s.add(person)
     s.flush()
 
+    return person.person_id
+
+
+def add_affiliation(
+    s: Session,
+    person_id: int,
+    *,
+    affiliation_role_id: int | None = None,
+    affiliation_role_name: Literal["EMPLOYEE", "STUDENT"] | None = None,
+) -> int:
+    if affiliation_role_name:
+        role_id = s.scalar(
+            select(AffiliationRole.affiliation_role_id).where(AffiliationRole.name == affiliation_role_name)
+        )
+
+        if not role_id:
+            raise KeyError(f"affiliation_role_name '{affiliation_role_name}' not found")
+
+    elif affiliation_role_id:
+        role_id = s.scalar(
+            select(AffiliationRole.affiliation_role_id).where(
+                AffiliationRole.affiliation_role_id == affiliation_role_id
+            )
+        )
+
+        if not role_id:
+            raise KeyError(f"affiliation_role_id '{affiliation_role_id}' not found")
+
+    else:
+        raise ValueError("'affiliation_role_id' or 'affiliation_role_name' must be provided")
+
+    exists_id = s.scalar(
+        select(Affiliation.affiliation_role_id).where(
+            Affiliation.person_id == person_id,
+            Affiliation.affiliation_role_id == role_id,
+        )
+    )
+
+    if exists_id:
+        return exists_id
+
+    affiliation = Affiliation(person_id=person_id, affiliation_role_id=role_id)
+
+    s.add(affiliation)
+    s.flush()
+
+    return affiliation.affiliation_id
+
 
 with Session(engine) as s:
-    add_person(s)
+    inspector = inspect(engine)
 
-    x = s.scalars(select(AffiliationRole))
-    pprint([i.affiliation_role_id for i in x.all()])
+    person_id = add_person(s)
+    add_affiliation(s, person_id, affiliation_role_name="EMPLOYEE")
