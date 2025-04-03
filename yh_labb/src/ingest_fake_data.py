@@ -1,5 +1,4 @@
 from datetime import date, datetime, timedelta
-from pprint import pprint
 import random
 from typing import Literal
 
@@ -23,8 +22,6 @@ class PostgresSettings(BaseSettings):
     user: str = Field(default="postgres")
     password: SecretStr = Field(default_factory=lambda: SecretStr(""))
     dbname: str = Field(default="postgres_db")
-
-    # model_config = SettingsConfigDict(env_prefix="POSTGRES_")
 
 
 class Database(BaseSettings):
@@ -140,7 +137,7 @@ def add_employment(
     s: Session,
     affiliation_id: int,
     employment_category_name: Literal["CONSULTANT", "FULL_TIME"],
-    date_start: date | None = None,
+    date_start: date,
     date_end: date | None = None,
 ) -> int:
     category_id = s.scalar(
@@ -151,14 +148,14 @@ def add_employment(
         )
     )
 
-    if not date_start:
-        date_start = get_random_date()
-
     employment = Employment(
         affiliation_id=affiliation_id,
         employment_category_id=category_id,
         date_start=date_start,
     )
+
+    if date_end:
+        employment.date_end = date_end
 
     s.add(employment)
     s.flush()
@@ -225,16 +222,21 @@ def add_employee(
     person_id: int,
     affiliation_role_name: Literal["EMPLOYEE", "MANAGER", "TEACHER"],
     employment_category_name: Literal["CONSULTANT", "FULL_TIME"],
+    date_start: date,
+    date_end: date | None = None,
 ) -> int:
-    affiliation_id = add_affiliation(s, person_id, affiliation_role_name=affiliation_role_name)
-    employment_id = add_employment(s, affiliation_id, employment_category_name=employment_category_name)
-
-    if affiliation_role_name == "MANAGER":
-        add_manager(s, employment_id)
-    elif affiliation_role_name == "TEACHER":
-        add_teacher(s, employment_id)
-    else:
-        raise KeyError(f"affiliation_role_name '{affiliation_role_name}' not found")
+    affiliation_id = add_affiliation(
+        s,
+        person_id,
+        affiliation_role_name=affiliation_role_name,
+    )
+    employment_id = add_employment(
+        s,
+        affiliation_id,
+        employment_category_name=employment_category_name,
+        date_start=date_start,
+        date_end=date_end,
+    )
 
     if employment_category_name == "CONSULTANT":
         add_consultant(s, employment_id)
@@ -243,15 +245,255 @@ def add_employee(
     else:
         raise KeyError(f"employment_category_name '{employment_category_name}' not found")
 
-    return employment_id
+    if affiliation_role_name == "MANAGER":
+        return add_manager(s, employment_id)
+    elif affiliation_role_name == "TEACHER":
+        return add_teacher(s, employment_id)
+    else:
+        raise KeyError(f"affiliation_role_name '{affiliation_role_name}' not found")
+
+
+def add_branch(s: Session) -> int:
+    fake_finance = FinanceProvider()
+    fake_address = AddressProvider()
+
+    branch = Branch(
+        name=fake_finance.company(),
+        city=fake_address.city(),
+        address=fake_address.address(),
+    )
+
+    s.add(branch)
+    s.flush()
+
+    return branch.branch_id
+
+
+def add_program(
+    s: Session,
+    date_start: date,
+    date_end: date | None = None,
+) -> int:
+    fake_finance = FinanceProvider()
+    fake_random = MimesisRandom()
+
+    program = Program(
+        name=fake_finance.company(),
+        code=fake_random.generate_string_by_mask("@@##"),
+        cycle=fake_random.randint(1, 3),
+        date_start=date_start,
+    )
+
+    if date_end:
+        program.date_end = date_end
+
+    s.add(program)
+    s.flush()
+
+    return program.program_id
+
+
+def add_program_branch(s: Session, program_id: int, branch_id: int) -> int:
+    program_branch = ProgramBranch(
+        program_id=program_id,
+        branch_id=branch_id,
+    )
+
+    s.add(program_branch)
+    s.flush()
+
+    return program_branch.program_branch_id
+
+
+def add_module_program(s: Session, module_id: int, program_id: int) -> int:
+    module_program = ModuleProgram(
+        module_id=module_id,
+        program_id=program_id,
+    )
+
+    s.add(module_program)
+    s.flush()
+
+    return module_program.module_program_id
+
+
+def add_module(
+    s: Session,
+    module_type_name: Literal["EXTRA", "PROGRAM", "WORKSHOP"],
+    branch_id: int,
+    date_start: date,
+    date_end: date | None = None,
+) -> int:
+    type_id = s.scalar(
+        select(
+            ModuleType.module_type_id,
+        ).where(
+            ModuleType.name == module_type_name,
+        )
+    )
+
+    fake_random = MimesisRandom()
+
+    module = Module(
+        module_type_id=type_id,
+        branch_id=branch_id,
+        name=fake_random.generate_string_by_mask("@@@@@@##"),
+        code=fake_random.generate_string_by_mask("@@##"),
+        date_start=date_start,
+    )
+
+    if date_end:
+        module.date_end = date_end
+
+    s.add(module)
+    s.flush()
+
+    return module.module_id
+
+
+def add_course(
+    s: Session,
+    module_id: int,
+    date_start: date,
+    date_end: date | None = None,
+) -> int:
+    fake_random = MimesisRandom()
+
+    course = Course(
+        module_id=module_id,
+        name=fake_random.generate_string_by_mask("@@@@@@##"),
+        code=fake_random.generate_string_by_mask("@@##"),
+        credits=fake_random.randint(1, 10),
+        date_start=date_start,
+    )
+
+    if date_end:
+        course.date_end = date_end
+
+    s.add(course)
+    s.flush()
+
+    return course.course_id
+
+
+def add_course_teacher(s: Session, course_id: int, teacher_id: int) -> int:
+    course_teacher = CourseTeacher(
+        course_id=course_id,
+        teacher_id=teacher_id,
+    )
+
+    s.add(course_teacher)
+    s.flush()
+
+    return course_teacher.course_teacher_id
+
+
+def add_course_student(s: Session, course_id: int, student_id: int) -> int:
+    course_student = CourseStudent(
+        course_id=course_id,
+        student_id=student_id,
+    )
+
+    s.add(course_student)
+    s.flush()
+
+    return course_student.course_student_id
+
+
+def add_cohort(
+    s: Session,
+    program_id: int,
+    date_start: date,
+    date_end: date | None = None,
+) -> int:
+    fake_random = MimesisRandom()
+
+    cohort = Cohort(
+        program_id=program_id,
+        name=fake_random.generate_string_by_mask("@@@@@@##"),
+        code=fake_random.generate_string_by_mask("@@##"),
+        date_start=date_start,
+    )
+
+    if date_end:
+        cohort.date_end = date_end
+
+    s.add(cohort)
+    s.flush()
+
+    return cohort.cohort_id
+
+
+def add_cohort_manager(s: Session, cohort_id: int, manager_id: int) -> int:
+    cohort_manager = CohortManager(
+        cohort_id=cohort_id,
+        manager_id=manager_id,
+    )
+
+    s.add(cohort_manager)
+    s.flush()
+
+    return cohort_manager.cohort_manager_id
+
+
+def add_student_cohort(s: Session, student_id: int, cohort_id: int) -> int:
+    student_cohort = StudentCohort(
+        student_id=student_id,
+        cohort_id=cohort_id,
+    )
+
+    s.add(student_cohort)
+    s.flush()
+
+    return student_cohort.student_cohort_id
+
+
+def add_student(
+    s: Session,
+    affiliation_id: int,
+    program_id: int,
+    date_start: date,
+    date_end: date | None = None,
+) -> int:
+    fake_person = PersonProvider()
+
+    student = Student(
+        affiliation_id=affiliation_id,
+        program_id=program_id,
+        email_internal=fake_person.email(),
+        date_start=date_start,
+    )
+
+    if date_end:
+        student.date_end = date_end
+
+    s.add(student)
+    s.flush()
+
+    return student.student_id
 
 
 if __name__ == "__main__":
     with Session(engine) as s:
         inspector = inspect(engine)
 
-        person_id = add_person(s)
-        employment_id = add_employee(s, person_id, "MANAGER", "FULL_TIME")
+        branch_id = add_branch(s)
+        program_id = add_program(s, get_random_date())
+        add_program_branch(s, program_id, branch_id)
+
+        module_id = add_module(s, "PROGRAM", branch_id, get_random_date())
+        course_id = add_course(s, module_id, get_random_date())
 
         person_id = add_person(s)
-        employment_id = add_employee(s, person_id, "TEACHER", "CONSULTANT")
+        teacher_id = add_employee(s, person_id, "TEACHER", "CONSULTANT", get_random_date())
+        add_course_teacher(s, course_id, teacher_id)
+
+        cohort_id = add_cohort(s, program_id, get_random_date())
+
+        person_id = add_person(s)
+        manager_id = add_employee(s, person_id, "MANAGER", "FULL_TIME", get_random_date())
+        add_cohort_manager(s, cohort_id, manager_id)
+
+        person_id = add_person(s)
+        student_id = add_student(s, add_affiliation(s, person_id, "STUDENT"), program_id, get_random_date())
+        add_student_cohort(s, student_id, cohort_id)
