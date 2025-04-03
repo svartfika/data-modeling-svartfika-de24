@@ -1,17 +1,18 @@
 from datetime import date, datetime, timedelta
-import random
+from itertools import batched
 from typing import Literal
+import random
 
 from mimesis.providers.address import Address as AddressProvider
 from mimesis.providers.finance import Finance as FinanceProvider
-from mimesis.random import Random as MimesisRandom
 from mimesis.providers.person import Person as PersonProvider
+from mimesis.random import Random as MimesisRandom
 
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from sqlalchemy import URL, create_engine, inspect, select
+from sqlalchemy import URL, create_engine, select
 from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.orm import Session
 
@@ -91,6 +92,10 @@ StudentCohort = Base.classes.student_cohort
 
 def get_random_date() -> datetime.date:
     return date(datetime.now().year, 1, 1) + timedelta(days=random.randint(0, 364))
+
+
+def get_random_date_interval(date_start: date, date_end: date) -> datetime.date:
+    return date_start + timedelta(days=random.randint(0, (date_end - date_start).days))
 
 
 def add_person(s: Session) -> int:
@@ -253,13 +258,13 @@ def add_employee(
         raise KeyError(f"affiliation_role_name '{affiliation_role_name}' not found")
 
 
-def add_branch(s: Session) -> int:
+def add_branch(s: Session, *, name: str | None = None, city: str | None = None) -> int:
     fake_finance = FinanceProvider()
     fake_address = AddressProvider()
 
     branch = Branch(
-        name=fake_finance.company(),
-        city=fake_address.city(),
+        name=name or fake_finance.company(),
+        city=city or fake_address.city(),
         address=fake_address.address(),
     )
 
@@ -273,12 +278,14 @@ def add_program(
     s: Session,
     date_start: date,
     date_end: date | None = None,
+    *,
+    name: str | None = None,
 ) -> int:
     fake_finance = FinanceProvider()
     fake_random = MimesisRandom()
 
     program = Program(
-        name=fake_finance.company(),
+        name=name or fake_finance.company(),
         code=fake_random.generate_string_by_mask("@@##"),
         cycle=fake_random.randint(1, 3),
         date_start=date_start,
@@ -356,14 +363,16 @@ def add_course(
     module_id: int,
     date_start: date,
     date_end: date | None = None,
+    *,
+    name: str | None,
 ) -> int:
     fake_random = MimesisRandom()
 
     course = Course(
         module_id=module_id,
-        name=fake_random.generate_string_by_mask("@@@@@@##"),
+        name=name or fake_random.generate_string_by_mask("@@@@@@##"),
         code=fake_random.generate_string_by_mask("@@##"),
-        credits=fake_random.randint(1, 10),
+        credits=fake_random.randint(10, 40),
         date_start=date_start,
     )
 
@@ -403,6 +412,7 @@ def add_course_student(s: Session, course_id: int, student_id: int) -> int:
 def add_cohort(
     s: Session,
     program_id: int,
+    branch_id: int,
     date_start: date,
     date_end: date | None = None,
 ) -> int:
@@ -410,6 +420,7 @@ def add_cohort(
 
     cohort = Cohort(
         program_id=program_id,
+        branch_id=branch_id,
         name=fake_random.generate_string_by_mask("@@@@@@##"),
         code=fake_random.generate_string_by_mask("@@##"),
         date_start=date_start,
@@ -473,10 +484,8 @@ def add_student(
     return student.student_id
 
 
-if __name__ == "__main__":
+def demo():
     with Session(engine) as s:
-        inspector = inspect(engine)
-
         branch_id = add_branch(s)
         program_id = add_program(s, get_random_date())
         add_program_branch(s, program_id, branch_id)
@@ -497,3 +506,112 @@ if __name__ == "__main__":
         person_id = add_person(s)
         student_id = add_student(s, add_affiliation(s, person_id, "STUDENT"), program_id, get_random_date())
         add_student_cohort(s, student_id, cohort_id)
+
+
+def main():
+    DATE_HT = date(2025, 8, 18)
+    DATE_HT_END = date(2025, 12, 28)
+    DATE_HT24_VT26 = {"date_start": date(2024, 8, 26), "date_end": date(2026, 5, 31)}
+
+    BRANCHES = {"STI Liljeholmen": "Stockholm", "STI Nordstan": "Göteborg"}
+
+    PROGRAMS_COURSES = {
+        "Data Engineer": {"SQL", "Data modelling", "Programmering inom data platform development"},
+        "UX-designer": {"Interaktionsdesign", "Frontend", "UX research, tjänstedesign och användbarhetstestning"},
+        "Systemutvecklare Inbyggda system": {
+            "Digitalteknik och elektronik",
+            "Objektorienterad programmering och design",
+            "Algoritmer, datastrukturer och design patterns",
+        },
+        "Javautvecklare": {"Java Enterprise och Eclipse", "Testdriven utveckling", "Molntjänster"},
+        "iOS/Android Developer": {
+            "Hybridutveckling med Javascript 1",
+            "OOP, datastrukturer, algoritmer och design",
+            "Webbkommunikation, APIer och backend",
+        },
+    }
+
+    with Session(engine) as s:
+        # Add all programs
+        for program_name in PROGRAMS_COURSES.keys():
+            add_program(s, DATE_HT24_VT26["date_start"], DATE_HT24_VT26["date_end"], name=program_name)
+
+        # Add branches
+        for branch_name, city in BRANCHES.items():
+            branch_id = add_branch(s, name=branch_name, city=city)
+
+            # Add 3 random programs to each branch
+            programs = s.execute(select(Program.program_id, Program.name)).all()
+
+            for program_id, program_name in random.sample(programs, 3):
+                add_program_branch(s, program_id, branch_id)
+
+                # Add a module
+                module_id = add_module(s, "PROGRAM", branch_id, DATE_HT, DATE_HT_END)
+                add_module_program(s, module_id, program_id)
+
+                # Add courses to module
+                for course_name in PROGRAMS_COURSES[program_name]:
+                    add_course(s, module_id, get_random_date_interval(DATE_HT, DATE_HT_END), name=course_name)
+
+        # Add one teacher to each course in a module
+        for module_id in s.scalars(select(Module.module_id)).all():
+            teacher_id = add_employee(
+                s,
+                add_person(s),
+                "TEACHER",
+                random.choice(["FULL_TIME", "CONSULTANT"]),
+                DATE_HT24_VT26["date_start"],
+                DATE_HT24_VT26["date_end"],
+            )
+
+            # Add teacher to each course
+            courses_ids = s.scalars(select(Course.course_id).where(Course.module_id == module_id)).all()
+            for course_id in courses_ids:
+                add_course_teacher(s, course_id, teacher_id)
+
+        # Add student cohorts for each program at each branch
+        programs_branches = s.scalars(select(ProgramBranch)).all()
+        for program_branch in programs_branches:
+            add_cohort(
+                s,
+                program_branch.program_id,
+                program_branch.branch_id,
+                DATE_HT24_VT26["date_start"],
+                DATE_HT24_VT26["date_end"],
+            )
+
+        # Add manager to each cohort (max 3 cohorts per manager)
+        cohorts_ids = s.scalars(select(Cohort.cohort_id)).all()
+        for batch_cohorts in batched(cohorts_ids, 3):
+            manager_id = add_employee(
+                s,
+                add_person(s),
+                "MANAGER",
+                random.choice(["FULL_TIME", "CONSULTANT"]),
+                DATE_HT24_VT26["date_start"],
+                DATE_HT24_VT26["date_end"],
+            )
+            for cohort_id in batch_cohorts:
+                add_cohort_manager(s, cohort_id, manager_id)
+
+        # Add 40 students to each cohort, add each student to one program
+        for cohort_id in cohorts_ids:
+            cohort_program_id = s.scalar(select(Cohort.program_id).where(Cohort.cohort_id == cohort_id))
+
+            for _ in range(40):
+                student_id = add_student(
+                    s,
+                    add_affiliation(s, add_person(s), "STUDENT"),
+                    cohort_program_id,
+                    DATE_HT24_VT26["date_start"],
+                    DATE_HT24_VT26["date_end"],
+                )
+                add_student_cohort(s, student_id, cohort_id)
+
+        # And voilà!
+        s.commit()
+
+
+if __name__ == "__main__":
+    main()
