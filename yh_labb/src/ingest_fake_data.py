@@ -118,40 +118,15 @@ def add_person(s: Session) -> int:
 def add_affiliation(
     s: Session,
     person_id: int,
-    *,
-    affiliation_role_id: int | None = None,
-    affiliation_role_name: Literal["EMPLOYEE", "MANAGER", "STUDENT", "TEACHER"] | None = None,
+    affiliation_role_name: Literal["EMPLOYEE", "MANAGER", "STUDENT", "TEACHER"],
 ) -> int:
-    if affiliation_role_name:
-        role_id = s.scalar(
-            select(AffiliationRole.affiliation_role_id).where(AffiliationRole.name == affiliation_role_name)
-        )
-
-        if not role_id:
-            raise KeyError(f"affiliation_role_name '{affiliation_role_name}' not found")
-
-    elif affiliation_role_id:
-        role_id = s.scalar(
-            select(AffiliationRole.affiliation_role_id).where(
-                AffiliationRole.affiliation_role_id == affiliation_role_id
-            )
-        )
-
-        if not role_id:
-            raise KeyError(f"affiliation_role_id '{affiliation_role_id}' not found")
-
-    else:
-        raise ValueError("'affiliation_role_id' or 'affiliation_role_name' must be provided")
-
-    exists_id = s.scalar(
-        select(Affiliation.affiliation_id).where(
-            Affiliation.person_id == person_id,
-            Affiliation.affiliation_role_id == role_id,
+    role_id = s.scalar(
+        select(
+            AffiliationRole.affiliation_role_id,
+        ).where(
+            AffiliationRole.name == affiliation_role_name,
         )
     )
-
-    if exists_id:
-        return exists_id
 
     affiliation = Affiliation(person_id=person_id, affiliation_role_id=role_id)
 
@@ -164,46 +139,20 @@ def add_affiliation(
 def add_employment(
     s: Session,
     affiliation_id: int,
-    *,
-    employment_category_id: int | None = None,
-    employment_category_name: Literal["CONSULTANT", "FULL_TIME"] | None = None,
+    employment_category_name: Literal["CONSULTANT", "FULL_TIME"],
     date_start: date | None = None,
     date_end: date | None = None,
 ) -> int:
-    if employment_category_name:
-        category_id = s.scalar(
-            select(EmploymentCategory.employment_category_id).where(EmploymentCategory.name == employment_category_name)
-        )
-
-        if not category_id:
-            raise KeyError(f"affiliation_role_name '{employment_category_name}' not found")
-
-    elif employment_category_id:
-        category_id = s.scalar(
-            select(EmploymentCategory.employment_category_id).where(
-                EmploymentCategory.employment_category_id == employment_category_id
-            )
-        )
-
-        if not category_id:
-            raise KeyError(f"employment_category_id '{employment_category_id}' not found")
-
-    else:
-        raise ValueError("'employment_category_id' or 'employment_category_name' must be provided")
-
-    if not date_start:
-        date_start = get_random_date()
-
-    exists_id = s.scalar(
-        select(Employment.employment_id).where(
-            Employment.affiliation_id == affiliation_id,
-            Employment.employment_category_id == category_id,
-            Employment.date_start == date_start,
+    category_id = s.scalar(
+        select(
+            EmploymentCategory.employment_category_id,
+        ).where(
+            EmploymentCategory.name == employment_category_name,
         )
     )
 
-    if exists_id:
-        return exists_id
+    if not date_start:
+        date_start = get_random_date()
 
     employment = Employment(
         affiliation_id=affiliation_id,
@@ -218,10 +167,6 @@ def add_employment(
 
 
 def add_consultant(s: Session, employment_id: int) -> int:
-    exists_id = s.scalar(select(Employment.employment_id).where(Employment.employment_id == employment_id))
-    if not exists_id:
-        raise KeyError(f"employment_id '{employment_id}' not found")
-
     fake_finance = FinanceProvider()
     fake_random = MimesisRandom()
     fake_address = AddressProvider()
@@ -242,10 +187,6 @@ def add_consultant(s: Session, employment_id: int) -> int:
 
 
 def add_full_time(s: Session, employment_id: int) -> int:
-    exists_id = s.scalar(select(Employment.employment_id).where(Employment.employment_id == employment_id))
-    if not exists_id:
-        raise KeyError(f"employment_id '{employment_id}' not found")
-
     fake_finance = FinanceProvider()
     fake_random = MimesisRandom()
 
@@ -262,10 +203,6 @@ def add_full_time(s: Session, employment_id: int) -> int:
 
 
 def add_manager(s: Session, employment_id: int) -> int:
-    exists_id = s.scalar(select(Employment.employment_id).where(Employment.employment_id == employment_id))
-    if not exists_id:
-        raise KeyError(f"employment_id '{employment_id}' not found")
-
     manager = Manager(employment_id=employment_id)
 
     s.add(manager)
@@ -275,10 +212,6 @@ def add_manager(s: Session, employment_id: int) -> int:
 
 
 def add_teacher(s: Session, employment_id: int) -> int:
-    exists_id = s.scalar(select(Employment.employment_id).where(Employment.employment_id == employment_id))
-    if not exists_id:
-        raise KeyError(f"employment_id '{employment_id}' not found")
-
     teacher = Teacher(employment_id=employment_id)
 
     s.add(teacher)
@@ -293,10 +226,6 @@ def add_employee(
     affiliation_role_name: Literal["EMPLOYEE", "MANAGER", "TEACHER"],
     employment_category_name: Literal["CONSULTANT", "FULL_TIME"],
 ) -> int:
-    exists_id = s.scalar(select(Person.person_id).where(Person.person_id == person_id))
-    if not exists_id:
-        raise KeyError(f"person_id '{person_id}' not found")
-
     affiliation_id = add_affiliation(s, person_id, affiliation_role_name=affiliation_role_name)
     employment_id = add_employment(s, affiliation_id, employment_category_name=employment_category_name)
 
@@ -320,18 +249,6 @@ def add_employee(
 if __name__ == "__main__":
     with Session(engine) as s:
         inspector = inspect(engine)
-
-        person_id = add_person(s)
-        affiliation_id = add_affiliation(s, person_id, affiliation_role_name="TEACHER")
-        employment_id = add_employment(s, affiliation_id, employment_category_name="CONSULTANT")
-        consultant_id = add_consultant(s, employment_id)
-        manager_id = add_manager(s, employment_id)
-
-        person_id = add_person(s)
-        affiliation_id = add_affiliation(s, person_id, affiliation_role_name="MANAGER")
-        employment_id = add_employment(s, affiliation_id, employment_category_name="FULL_TIME")
-        full_time_id = add_full_time(s, employment_id)
-        teacher_id = add_teacher(s, employment_id)
 
         person_id = add_person(s)
         employment_id = add_employee(s, person_id, "MANAGER", "FULL_TIME")
