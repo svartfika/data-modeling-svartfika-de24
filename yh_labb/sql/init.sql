@@ -69,6 +69,20 @@ CREATE TABLE IF NOT EXISTS yh.full_time (
 
 
 
+CREATE TABLE IF NOT EXISTS yh.manager (
+    manager_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employment_id bigint NOT NULL REFERENCES yh.employment (employment_id),
+    UNIQUE (employment_id)
+) ;
+
+CREATE TABLE IF NOT EXISTS yh.teacher (
+    teacher_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employment_id bigint NOT NULL REFERENCES yh.employment (employment_id),
+    UNIQUE (employment_id)
+) ;
+
+
+
 CREATE TABLE IF NOT EXISTS yh.branch (
     branch_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name varchar(100) NOT NULL,
@@ -123,19 +137,16 @@ CREATE TABLE IF NOT EXISTS yh.course (
 
 
 
-CREATE TABLE IF NOT EXISTS yh.manager (
-    manager_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    employment_id bigint NOT NULL REFERENCES yh.employment (employment_id),
-    UNIQUE (employment_id)
+CREATE TABLE IF NOT EXISTS yh.cohort (
+    cohort_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    program_id bigint NOT NULL REFERENCES yh.program (program_id),
+    branch_id bigint NOT NULL REFERENCES yh.branch (branch_id),
+    name varchar(100) NOT NULL,
+    code varchar(100) NOT NULL,
+    date_start date NOT NULL,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
+    UNIQUE (program_id, code, date_start)
 ) ;
-
-CREATE TABLE IF NOT EXISTS yh.teacher (
-    teacher_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    employment_id bigint NOT NULL REFERENCES yh.employment (employment_id),
-    UNIQUE (employment_id)
-) ;
-
-
 
 CREATE TABLE IF NOT EXISTS yh.student (
     student_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -145,16 +156,6 @@ CREATE TABLE IF NOT EXISTS yh.student (
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (affiliation_id, program_id, date_start)
-) ;
-
-CREATE TABLE IF NOT EXISTS yh.cohort (
-    cohort_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    program_id bigint NOT NULL REFERENCES yh.program (program_id),
-    name varchar(100) NOT NULL,
-    code varchar(100) NOT NULL,
-    date_start date NOT NULL,
-    date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (program_id, code, date_start)
 ) ;
 
 
@@ -212,7 +213,7 @@ CREATE TABLE IF NOT EXISTS yh.student_cohort (
 -- DEFAULT VALUES
 
 INSERT INTO yh.affiliation_role (name) 
-VALUES ('EMPLOYEE'), ('STUDENT')
+VALUES ('EMPLOYEE'), ('MANAGER'), ('STUDENT'), ('TEACHER')
 ON CONFLICT (name) DO NOTHING ;
 
 INSERT INTO yh.employment_category (name) 
