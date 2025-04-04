@@ -100,9 +100,7 @@ CREATE TABLE IF NOT EXISTS yh.program (
     code varchar(100) NOT NULL,
     cycle smallint NOT NULL CHECK (cycle BETWEEN 1 AND 3),
     description text,
-    date_start date NOT NULL,
-    date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (code, cycle, date_start)
+    UNIQUE (code, cycle)
 ) ;
 
 
@@ -127,14 +125,12 @@ CREATE TABLE IF NOT EXISTS yh.module (
 
 CREATE TABLE IF NOT EXISTS yh.course (
     course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    module_id bigint NOT NULL REFERENCES yh.module (module_id) ON DELETE RESTRICT,
+    program_id bigint NOT NULL REFERENCES yh.program (program_id) ON DELETE RESTRICT,
     name varchar(100) NOT NULL,
     code varchar(100) NOT NULL,
     credits smallint NOT NULL,
     description text,
-    date_start date NOT NULL,
-    date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (module_id, code, date_start)
+    UNIQUE (program_id, code)
 ) ;
 
 
@@ -153,11 +149,10 @@ CREATE TABLE IF NOT EXISTS yh.cohort (
 CREATE TABLE IF NOT EXISTS yh.student (
     student_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     affiliation_id bigint NOT NULL REFERENCES yh.affiliation (affiliation_id) ON DELETE CASCADE,
-    program_id bigint NOT NULL REFERENCES yh.program (program_id) ON DELETE RESTRICT,
     email_internal varchar(100) NOT NULL,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (affiliation_id, program_id, date_start)
+    UNIQUE (affiliation_id, email_internal)
 ) ;
 
 
@@ -170,7 +165,7 @@ CREATE TABLE IF NOT EXISTS yh.program_branch (
     branch_id bigint NOT NULL REFERENCES yh.branch (branch_id) ON DELETE RESTRICT,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (program_id, branch_id)
+    UNIQUE (program_id, branch_id, date_start)
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.module_program (
@@ -179,27 +174,36 @@ CREATE TABLE IF NOT EXISTS yh.module_program (
     program_id bigint NOT NULL REFERENCES yh.program (program_id) ON DELETE RESTRICT,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (module_id, program_id)
+    UNIQUE (module_id, program_id, date_start)
+) ;
+
+CREATE TABLE IF NOT EXISTS yh.course_module (
+    course_module_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    course_id bigint NOT NULL REFERENCES yh.course (course_id) ON DELETE CASCADE,
+    module_id bigint NOT NULL REFERENCES yh.module (module_id) ON DELETE CASCADE,
+    date_start date NOT NULL,
+    date_end date CHECK (date_end IS NULL OR date_end > date_start),
+    UNIQUE (course_id, module_id, date_start)
 ) ;
 
 
 
-CREATE TABLE IF NOT EXISTS yh.course_teacher (
+CREATE TABLE IF NOT EXISTS yh.teacher_course (
     course_teacher_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    course_id bigint NOT NULL REFERENCES yh.course (course_id) ON DELETE CASCADE,
     teacher_id bigint NOT NULL REFERENCES yh.teacher (teacher_id) ON DELETE CASCADE,
+    course_module_id bigint NOT NULL REFERENCES yh.course_module (course_module_id) ON DELETE CASCADE,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (course_id, teacher_id)
+    UNIQUE (teacher_id, course_module_id, date_start)
 ) ;
 
-CREATE TABLE IF NOT EXISTS yh.course_student (
-    course_student_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    course_id bigint NOT NULL REFERENCES yh.course (course_id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS yh.student_course (
+    student_course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     student_id bigint NOT NULL REFERENCES yh.student (student_id) ON DELETE CASCADE,
+    course_module_id bigint NOT NULL REFERENCES yh.course_module (course_module_id) ON DELETE CASCADE,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (course_id, student_id)
+    UNIQUE (student_id, course_module_id, date_start)
 ) ;
 
 
@@ -210,7 +214,7 @@ CREATE TABLE IF NOT EXISTS yh.cohort_manager (
     manager_id bigint NOT NULL REFERENCES yh.manager (manager_id) ON DELETE CASCADE,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (cohort_id, manager_id)
+    UNIQUE (cohort_id, manager_id, date_start)
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.student_cohort (
@@ -219,7 +223,7 @@ CREATE TABLE IF NOT EXISTS yh.student_cohort (
     cohort_id bigint NOT NULL REFERENCES yh.cohort (cohort_id) ON DELETE CASCADE,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (student_id, cohort_id)
+    UNIQUE (student_id, cohort_id, date_start)
 ) ;
 
 
@@ -235,5 +239,5 @@ VALUES ('CONSULTANT'), ('FULL_TIME')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO yh.module_type (name) 
-VALUES ('EXTRA'), ('PROGRAM'), ('WORKSHOP')
+VALUES ('EXTRA'), ('SEMESTER'), ('WORKSHOP')
 ON CONFLICT (name) DO NOTHING;
