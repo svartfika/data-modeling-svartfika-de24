@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 import random
 
-from seed_data import BRANCHES, PROGRAMS_COURSES
+from seed_data import BRANCHES, PROGRAMS_COURSES, SEMESTERS
 
 from mimesis import Generic
 from pydantic import Field, SecretStr
@@ -49,11 +49,11 @@ POSTGRES_URL = URL.create(
 )
 
 
-def get_random_date() -> datetime.date:
+def random_date_this_year() -> datetime.date:
     return date(datetime.now().year, 1, 1) + timedelta(days=random.randint(0, 364))
 
 
-def get_random_date_interval(date_start: date, date_end: date) -> datetime.date:
+def random_date_between(date_start: date, date_end: date) -> datetime.date:
     return date_start + timedelta(days=random.randint(0, (date_end - date_start).days))
 
 
@@ -107,7 +107,8 @@ class DataIngestion:
         with Session(self.engine) as s:
             self._ingest_branches(s)
             self._ingest_programs_courses(s)
-            s.flush()
+            self._ingest_program_branch_junction(s)
+            self._ingest_modules_semesters(s)
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -119,9 +120,11 @@ class DataIngestion:
             }
             for seed_data in BRANCHES
         ]
+
         s.execute(insert(self.Branch), values)
 
     def _ingest_programs_courses(self, s: Session):
+        values_courses = []
         values_programs = [
             {
                 "name": seed_data["name"],
@@ -132,16 +135,15 @@ class DataIngestion:
             for seed_data in PROGRAMS_COURSES
         ]
 
-        result = s.execute(
+        result_programs = s.execute(
             insert(self.Program).returning(self.Program.program_id, self.Program.code),
             values_programs,
         )
 
-        programs_code_id_map = {code: id for id, code in result.all()}
+        programs_map = {code: id for id, code in result_programs.all()}
 
-        values_courses = []
         for seed_data in PROGRAMS_COURSES:
-            program_id = programs_code_id_map[seed_data["code"]]
+            program_id = programs_map[seed_data["code"]]
             for course in seed_data["courses"]:
                 seed_course = {
                     "program_id": program_id,
@@ -156,6 +158,82 @@ class DataIngestion:
             insert(self.Course),
             values_courses,
         )
+
+    def _ingest_program_branch_junction(self, s: Session):
+        values_junction = []
+
+        for branch_id in s.scalars(select(self.Branch.branch_id)).all():
+            for program_id in s.scalars(select(self.Program.program_id)).all():
+                seed_junction = {
+                    "program_id": program_id,
+                    "branch_id": branch_id,
+                    "date_start": SEMESTERS["HT24"]["date_start"],
+                    "date_end": SEMESTERS["VT26"]["date_end"],
+                }
+                values_junction.append(seed_junction)
+
+        s.execute(
+            insert(self.ProgramBranch),
+            values_junction,
+        )
+
+    def _ingest_modules_semesters(self, s: Session):
+        module_types_map = {r.name: r.module_type_id for r in s.scalars(select(self.ModuleType)).all()}
+
+        result_branch_program = s.execute(
+            select(self.Branch, self.Program)
+            .join(self.ProgramBranch, self.Branch.branch_id == self.ProgramBranch.branch_id)
+            .join(self.Program, self.Program.program_id == self.ProgramBranch.program_id)
+        ).all()
+
+        for branch, program in result_branch_program:
+            result_program_course = s.scalars(
+                select(self.Course).where(self.Course.program_id == program.program_id)
+            ).all()
+
+            values_semester = []
+            for semster_code, date_range in SEMESTERS.items():
+                seed_semester = {
+                    "module_type_id": module_types_map["SEMESTER"],
+                    "branch_id": branch.branch_id,
+                    "name": f"{program.name} - {program.code}{semster_code}",
+                    "code": f"{program.code}{semster_code}",
+                    "description": self._fake.text.sentence(),
+                    "date_start": date_range["date_start"],
+                    "date_end": date_range["date_end"],
+                }
+
+                values_semester.append((seed_semester, result_program_course))
+
+            values_course_module = []
+            for value_module, courses in values_semester:
+                result_module_id = s.scalar(insert(self.Module).returning(self.Module.module_id), value_module)
+
+                course_intervals = self.divide_date_interval(
+                    value_module["date_start"], value_module["date_end"], len(courses)
+                )
+
+                for course, (date_start, date_end) in zip(courses, course_intervals):
+                    seed_course_module = {
+                        "course_id": course.course_id,
+                        "module_id": result_module_id,
+                        "date_start": date_start,
+                        "date_end": date_end,
+                    }
+                    values_course_module.append(seed_course_module)
+
+            s.execute(insert(self.CourseModule), values_course_module)
+
+    def _divide_date_interval(start_date: date, end_date: date, x: int):
+        interval = (end_date - start_date).days / x
+        return [
+            (
+                start_date + timedelta(days=int(interval * i)),
+                end_date if i == x - 1 else start_date + timedelta(days=int(interval * (i + 1))),
+            )
+            for i in range(x)
+        ]
+
 
 def main():
     engine = create_engine(POSTGRES_URL)
