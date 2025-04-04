@@ -1,3 +1,6 @@
+from datetime import date
+
+
 BRANCHES = [
     {"name": "STI Liljeholmen", "city": "Stockholm"},
     {"name": "STI Nordstan", "city": "Göteborg"},
@@ -95,3 +98,22 @@ PROGRAMS_COURSES = [
         ],
     },
 ]
+
+SEMESTERS = {
+    "HT24": {
+        "date_start": date(2024, 8, 18),
+        "date_end": date(2025, 12, 22),
+    },
+    "VT25": {
+        "date_start": date(2025, 1, 6),
+        "date_end": date(2025, 6, 8),
+    },
+    "HT25": {
+        "date_start": date(2025, 8, 18),
+        "date_end": date(2025, 12, 28),
+    },
+    "VT26": {
+        "date_start": date(2025, 12, 29),
+        "date_end": date(2026, 5, 31),
+    },
+}
