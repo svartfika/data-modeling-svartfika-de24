@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 import random
 
-from seed import BRANCHES
+from seed_data import BRANCHES, PROGRAMS_COURSES
 
 from mimesis import Generic
 from pydantic import Field, SecretStr
@@ -106,19 +106,56 @@ class DataIngestion:
     def ingest(self):
         with Session(self.engine) as s:
             self._ingest_branches(s)
+            self._ingest_programs_courses(s)
+            s.flush()
 
     def _ingest_branches(self, s: Session):
-        seed_branches = [
+        values = [
             {
-                "name": seed_branch["name"],
-                "city": seed_branch["city"],
+                "name": seed_data["name"],
+                "city": seed_data["city"],
                 "address": self._fake.address.address(),
                 "description": self._fake.text.sentence(),
             }
-            for seed_branch in BRANCHES
+            for seed_data in BRANCHES
         ]
-        s.execute(insert(self.Branch), seed_branches)
+        s.execute(insert(self.Branch), values)
 
+    def _ingest_programs_courses(self, s: Session):
+        values_programs = [
+            {
+                "name": seed_data["name"],
+                "code": seed_data["code"],
+                "cycle": self._fake.random.randint(1, 3),
+                "description": self._fake.text.sentence(),
+            }
+            for seed_data in PROGRAMS_COURSES
+        ]
+
+        result = s.execute(
+            insert(self.Program).returning(self.Program.program_id, self.Program.code),
+            values_programs,
+        )
+
+        programs_code_id_map = {code: id for id, code in result.all()}
+
+        values_courses = []
+        for seed_data in PROGRAMS_COURSES:
+            program_id = programs_code_id_map[seed_data["code"]]
+            for course in seed_data["courses"]:
+                seed_course = {
+                    "program_id": program_id,
+                    "name": course["name"],
+                    "code": course["code"],
+                    "credits": self._fake.random.randint(10, 100),
+                    "description": self._fake.text.sentence(),
+                }
+                values_courses.append(seed_course)
+
+        s.execute(
+            insert(self.Course),
+            values_courses,
+        )
 
 def main():
     engine = create_engine(POSTGRES_URL)
