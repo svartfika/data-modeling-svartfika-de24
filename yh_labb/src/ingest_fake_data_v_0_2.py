@@ -145,14 +145,13 @@ class DataIngestion:
         for seed_data in PROGRAMS_COURSES:
             program_id = programs_map[seed_data["code"]]
             for course in seed_data["courses"]:
-                seed_course = {
+                values_courses.append({
                     "program_id": program_id,
                     "name": course["name"],
                     "code": course["code"],
                     "credits": self._fake.random.randint(10, 100),
                     "description": self._fake.text.sentence(),
-                }
-                values_courses.append(seed_course)
+                })
 
         s.execute(
             insert(self.Course),
@@ -164,13 +163,12 @@ class DataIngestion:
 
         for branch_id in s.scalars(select(self.Branch.branch_id)).all():
             for program_id in s.scalars(select(self.Program.program_id)).all():
-                seed_junction = {
+                values_junction.append({
                     "program_id": program_id,
                     "branch_id": branch_id,
                     "date_start": SEMESTERS["HT24"]["date_start"],
                     "date_end": SEMESTERS["VT26"]["date_end"],
-                }
-                values_junction.append(seed_junction)
+                })
 
         s.execute(
             insert(self.ProgramBranch),
@@ -178,7 +176,7 @@ class DataIngestion:
         )
 
     def _ingest_modules_semesters(self, s: Session):
-        module_types_map = {r.name: r.module_type_id for r in s.scalars(select(self.ModuleType)).all()}
+        module_type_map = {r.name: r.module_type_id for r in s.scalars(select(self.ModuleType)).all()}
 
         result_branch_program = s.execute(
             select(self.Branch, self.Program)
@@ -193,30 +191,32 @@ class DataIngestion:
 
             values_semester = []
             for semster_code, date_range in SEMESTERS.items():
-                seed_semester = {
-                    "module_type_id": module_types_map["SEMESTER"],
-                    "branch_id": branch.branch_id,
-                    "name": f"{program.name} - {program.code}{semster_code}",
-                    "code": f"{program.code}{semster_code}",
-                    "description": self._fake.text.sentence(),
-                    "date_start": date_range["date_start"],
-                    "date_end": date_range["date_end"],
-                }
-
-                values_semester.append((seed_semester, result_program_course))
-
-            values_course_module = []
-            for value_module, courses in values_semester:
-                result_module_id = s.scalar(insert(self.Module).returning(self.Module.module_id), value_module)
-
-                course_intervals = self.divide_date_interval(
-                    value_module["date_start"], value_module["date_end"], len(courses)
+                values_semester.append(
+                    {
+                        "module_type_id": module_type_map["SEMESTER"],
+                        "branch_id": branch.branch_id,
+                        "name": f"{program.name} - {program.code}{semster_code}",
+                        "code": f"{program.code}{semster_code}",
+                        "description": self._fake.text.sentence(),
+                        "date_start": date_range["date_start"],
+                        "date_end": date_range["date_end"],
+                    }
                 )
 
-                for course, (date_start, date_end) in zip(courses, course_intervals):
+            result_modules_ids = (
+                s.execute(insert(self.Module).returning(self.Module.module_id), values_semester).scalars().all()
+            )
+
+            values_course_module = []
+            for value_module_id, value_semster in zip(result_modules_ids, values_semester):
+                course_intervals = self._divide_date_interval(
+                    value_semster["date_start"], value_semster["date_end"], len(result_program_course)
+                )
+
+                for course, (date_start, date_end) in zip(result_program_course, course_intervals):
                     seed_course_module = {
                         "course_id": course.course_id,
-                        "module_id": result_module_id,
+                        "module_id": value_module_id,
                         "date_start": date_start,
                         "date_end": date_end,
                     }
@@ -224,7 +224,17 @@ class DataIngestion:
 
             s.execute(insert(self.CourseModule), values_course_module)
 
-    def _divide_date_interval(start_date: date, end_date: date, x: int):
+    def _build_person(self) -> dict:
+        return {
+            "last_name": self._fake.person.last_name(),
+            "first_name": self._fake.person.first_name(),
+            "identity_number": f"{self._fake.person.birthdate().strftime('%Y%m%d')}-{self._fake.person.identifier('####')}",
+            "address": self._fake.address.address(),
+            "phone": self._fake.person.phone_number(),
+            "email_private": self._fake.person.email(),
+        }
+
+    def _divide_date_interval(self, start_date: date, end_date: date, x: int):
         interval = (end_date - start_date).days / x
         return [
             (
