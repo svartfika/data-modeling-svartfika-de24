@@ -16,8 +16,6 @@ CREATE TABLE IF NOT EXISTS yh.person (
     UNIQUE (identity_number)
 ) ;
 
-
-
 CREATE TABLE IF NOT EXISTS yh.affiliation_role (
     affiliation_role_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name varchar(100) NOT NULL UNIQUE,
@@ -49,8 +47,6 @@ CREATE TABLE IF NOT EXISTS yh.employment (
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (affiliation_id, employment_category_id, date_start)
 ) ;
-
-
 
 CREATE TABLE IF NOT EXISTS yh.consultant (
     consultant_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -103,6 +99,16 @@ CREATE TABLE IF NOT EXISTS yh.program (
     UNIQUE (code, cycle)
 ) ;
 
+CREATE TABLE IF NOT EXISTS yh.course (
+    course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    program_id bigint NOT NULL REFERENCES yh.program (program_id) ON DELETE RESTRICT,
+    name varchar(100) NOT NULL,
+    code varchar(100) NOT NULL,
+    credits smallint NOT NULL,
+    description text,
+    UNIQUE (program_id, code)
+) ;
+
 
 
 CREATE TABLE IF NOT EXISTS yh.module_type (
@@ -121,16 +127,6 @@ CREATE TABLE IF NOT EXISTS yh.module (
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (branch_id, code, date_start) 
-) ;
-
-CREATE TABLE IF NOT EXISTS yh.course (
-    course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    program_id bigint NOT NULL REFERENCES yh.program (program_id) ON DELETE RESTRICT,
-    name varchar(100) NOT NULL,
-    code varchar(100) NOT NULL,
-    credits smallint NOT NULL,
-    description text,
-    UNIQUE (program_id, code)
 ) ;
 
 
@@ -157,7 +153,7 @@ CREATE TABLE IF NOT EXISTS yh.student (
 
 
 
--- JOINT TABLES
+-- JUNCTION TABLES
 
 CREATE TABLE IF NOT EXISTS yh.program_branch (
     program_branch_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
