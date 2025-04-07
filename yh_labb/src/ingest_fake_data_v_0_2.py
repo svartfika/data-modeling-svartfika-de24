@@ -108,6 +108,7 @@ class DataIngestion:
             self._ingest_managers(s)
             self._ingest_students(s)
             self._ingest_student_course_junction(s)
+            s.commit()
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -538,13 +539,15 @@ class DataIngestion:
             for cohort, student in zip(cycle_result_cohort, result_student)
         ]
 
-        s.execute(insert(self.StudentCohort).returning(self.StudentCohort), values_student_cohort)
+        s.execute(insert(self.StudentCohort), values_student_cohort)
 
     def _ingest_student_course_junction(self, s: Session):
+        # query courses by module, match to student's program-branch
+
         result_cohort_courses = s.execute(
             select(
                 self.StudentCohort.student_id,
-                self.CourseModule.course_module_id,
+                self.CourseModule,
             )
             .join_from(self.CourseModule, self.Module, self.CourseModule.module_id == self.Module.module_id)
             .join(self.ModuleProgram, self.Module.module_id == self.ModuleProgram.module_id)
@@ -553,6 +556,20 @@ class DataIngestion:
             .join(self.StudentCohort, self.Cohort.cohort_id == self.StudentCohort.cohort_id)
             .order_by(self.StudentCohort.student_id, self.CourseModule.course_module_id)
         ).all()
+
+        # ingest student course junction table
+
+        values_student_course = [
+            {
+                "student_id": student_id,
+                "course_module_id": course.course_module_id,
+                "date_start": course.date_start,
+                "date_end": course.date_end,
+            }
+            for student_id, course in result_cohort_courses
+        ]
+
+        s.execute(insert(self.StudentCourse), values_student_course)
 
     def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
         return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
@@ -570,9 +587,8 @@ class DataIngestion:
 
 def main():
     engine = create_engine(POSTGRES_URL)
-    di = DataIngestion(engine)
-    di.ingest()
-
+    genrate_fake_data = DataIngestion(engine)
+    genrate_fake_data.ingest()
 
 if __name__ == "__main__":
     main()
