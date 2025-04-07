@@ -126,7 +126,8 @@ class DataIngestion:
         s.execute(insert(self.Branch), values)
 
     def _ingest_programs_courses(self, s: Session):
-        values_courses = []
+        # ingest programs
+
         values_programs = [
             {
                 "name": seed_data["name"],
@@ -138,11 +139,14 @@ class DataIngestion:
         ]
 
         result_programs = s.execute(
-            insert(self.Program).returning(self.Program.program_id, self.Program.code),
-            values_programs,
+            insert(self.Program).returning(self.Program.program_id, self.Program.code), values_programs
         )
 
         programs_map = {code: id for id, code in result_programs.all()}
+
+        # ingest courses
+
+        values_courses = []
 
         for seed_data in PROGRAMS_COURSES:
             program_id = programs_map[seed_data["code"]]
@@ -157,12 +161,11 @@ class DataIngestion:
                     }
                 )
 
-        s.execute(
-            insert(self.Course),
-            values_courses,
-        )
+        s.execute(insert(self.Course), values_courses)
 
     def _ingest_program_branch_junction(self, s: Session):
+        # ingest program many-to-many branch junction table
+
         values_junction = []
 
         for branch_id in s.scalars(select(self.Branch.branch_id)).all():
@@ -176,13 +179,12 @@ class DataIngestion:
                     }
                 )
 
-        s.execute(
-            insert(self.ProgramBranch),
-            values_junction,
-        )
+        s.execute(insert(self.ProgramBranch), values_junction)
 
     def _ingest_modules_semesters(self, s: Session):
-        module_type_map = {r.name: r.module_type_id for r in s.scalars(select(self.ModuleType)).all()}
+        # ingest modules
+
+        module_type_name_map = self._create_lookup_map(s, self.ModuleType, value_field="module_type_id")
 
         result_branch_program = s.execute(
             select(self.Branch, self.Program)
@@ -199,7 +201,7 @@ class DataIngestion:
             for semster_code, date_range in SEMESTERS.items():
                 values_semester.append(
                     {
-                        "module_type_id": module_type_map["SEMESTER"],
+                        "module_type_id": module_type_name_map["SEMESTER"],
                         "branch_id": branch.branch_id,
                         "name": f"{program.name} - {program.code}{semster_code}",
                         "code": f"{program.code}{semster_code}",
@@ -212,6 +214,8 @@ class DataIngestion:
             result_modules_ids = (
                 s.execute(insert(self.Module).returning(self.Module.module_id), values_semester).scalars().all()
             )
+
+            # ingest course many-to-many module junction table
 
             values_course_module = []
             for value_module_id, value_semster in zip(result_modules_ids, values_semester):
@@ -236,8 +240,10 @@ class DataIngestion:
         affiliation_role_name: Literal["EMPLOYEE", "MANAGER", "TEACHER"],
         date_start: date,
         # date_end: date | None = None,
-        n_employees: int = 10,
+        n_employees: int = 1,
     ):
+        # ingest person(s)
+
         result_persons_ids = self._ingest_person(s, n_employees)
 
         # ingest affiliation
