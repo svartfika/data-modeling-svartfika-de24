@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 import itertools
 import random
 from typing import Literal
@@ -105,6 +105,7 @@ class DataIngestion:
             self._ingest_modules_semesters(s)
             self._ingest_techers(s)
             self._ingest_cohorts(s)
+            self._ingest_managers(s)
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -426,8 +427,47 @@ class DataIngestion:
                     "date_end": program_branch.date_end,
                 }
             )
-        
+
         s.execute(insert(self.Cohort), values_cohort)
+
+    def _ingest_managers(self, s: Session, n_courses_max: int = 3):
+        values_cohort_manager = []
+
+        result_cohort = (
+            s.execute(
+                select(self.Cohort).order_by(
+                    self.Cohort.branch_id,
+                    self.Cohort.program_id,
+                    self.Cohort.date_start,
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        # iterate of branch-cohort
+
+        for branch_id in {r.branch_id for r in result_cohort}:
+            branch_cohorts = [r for r in result_cohort if r.branch_id == branch_id]
+
+            for batch_cohort in itertools.batched(branch_cohorts, n_courses_max):
+                # ingest manager for each batch of n_courses_max cohorts
+
+                result_manager_id = self._ingest_employee(s, "MANAGER", batch_cohort[0].date_start)
+
+                # ingest cohort many-to-many manager junction table
+
+                for cohort in batch_cohort:
+                    values_cohort_manager.append(
+                        {
+                            "cohort_id": cohort.cohort_id,
+                            "manager_id": result_manager_id[0],
+                            "date_start": cohort.date_start,
+                            "date_end": cohort.date_end,
+                        }
+                    )
+
+        s.execute(insert(self.CohortManager), values_cohort_manager)
 
     def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
         return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
