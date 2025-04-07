@@ -106,6 +106,7 @@ class DataIngestion:
             self._ingest_techers(s)
             self._ingest_cohorts(s)
             self._ingest_managers(s)
+            self._ingest_students(s)
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -468,6 +469,64 @@ class DataIngestion:
                     )
 
         s.execute(insert(self.CohortManager), values_cohort_manager)
+
+    def _ingest_students(self, s: Session, n_cohort_max: int = 45):
+        result_cohort = s.execute(select(self.Cohort)).scalars().all()
+        cycle_result_cohort = itertools.cycle(result_cohort)
+
+        # ingest n_cohort_max persons per cohort
+
+        result_persons_ids = self._ingest_person(s, n_cohort_max * len(result_cohort))
+
+        # ingest affiliation
+
+        affiliation_role_map = self._create_lookup_map(s, self.AffiliationRole, value_field="affiliation_role_id")
+
+        values_affiliation = [
+            {
+                "person_id": person_id,
+                "affiliation_role_id": affiliation_role_map["STUDENT"],
+                "date_start": cohort.date_start,
+                "date_end": cohort.date_end,
+            }
+            for cohort, person_id in zip(cycle_result_cohort, result_persons_ids)
+        ]
+
+        result_affiliation = (
+            s.execute(insert(self.Affiliation).returning(self.Affiliation), values_affiliation).scalars().all()
+        )
+
+        # ingest students
+
+        values_student = [
+            {
+                "affiliation_id": affiliation.affiliation_id,
+                "program_id": cohort.program_id,
+                "email_internal": self._fake.person.email(),
+                "date_start": affiliation.date_start,
+                "date_end": affiliation.date_end,
+            }
+            for cohort, affiliation in zip(cycle_result_cohort, result_affiliation)
+        ]
+
+        result_student = (
+            s.execute(insert(self.Student).returning(self.Student), values_student).scalars().all()
+        )
+
+        # ingest student cohort junction table
+
+        values_student_cohort = [
+            {
+                "student_id": student.student_id,
+                "cohort_id": cohort.cohort_id,
+                "date_start": cohort.date_start,
+                "date_end": cohort.date_end,
+            }
+            for cohort, student in zip(cycle_result_cohort, result_student)
+        ]
+
+        s.execute(insert(self.StudentCohort).returning(self.StudentCohort), values_student_cohort)
+
 
     def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
         return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
