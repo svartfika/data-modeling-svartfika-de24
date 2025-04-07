@@ -51,14 +51,6 @@ POSTGRES_URL = URL.create(
 )
 
 
-def random_date_this_year() -> datetime.date:
-    return date(datetime.now().year, 1, 1) + timedelta(days=random.randint(0, 364))
-
-
-def random_date_between(date_start: date, date_end: date) -> datetime.date:
-    return date_start + timedelta(days=random.randint(0, (date_end - date_start).days))
-
-
 class DataIngestion:
     def __init__(self, engine: Engine):
         self.engine = engine
@@ -112,6 +104,7 @@ class DataIngestion:
             self._ingest_program_branch_junction(s)
             self._ingest_modules_semesters(s)
             self._ingest_techers(s)
+            self._ingest_cohorts(s)
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -204,8 +197,8 @@ class DataIngestion:
                     {
                         "module_type_id": module_type_name_map["SEMESTER"],
                         "branch_id": branch.branch_id,
-                        "name": f"{program.name} - {program.code}{semster_code}",
-                        "code": f"{program.code}{semster_code}",
+                        "name": f"{program.name} - {branch.city} - {semster_code}",
+                        "code": f"{program.code}{date_range['date_start']:%y}-{branch.city}-{semster_code}",
                         "description": self._fake.text.sentence(),
                         "date_start": date_range["date_start"],
                         "date_end": date_range["date_end"],
@@ -366,7 +359,6 @@ class DataIngestion:
                 self.Branch,
                 self.Program,
                 self.ProgramBranch,
-                self.Module,
                 self.CourseModule,
             )
             .join_from(self.Branch, self.ProgramBranch, self.Branch.branch_id == self.ProgramBranch.branch_id)
@@ -397,7 +389,7 @@ class DataIngestion:
             # ingest teacher many-to-many course junction table
 
             courses_ids = [
-                (row[4].course_module_id, row[4].date_start)
+                (row[3].course_module_id, row[3].date_start)
                 for row in result_branch_program_module_course
                 if row[0].branch_id == branch.branch_id and row[1].program_id == program.program_id
             ]
@@ -412,6 +404,30 @@ class DataIngestion:
             ]
 
             s.execute(insert(self.TeacherCourse), values_teacher_course_module_ids)
+
+    def _ingest_cohorts(self, s: Session):
+        # ingest cohorts for each program at each branch
+
+        result_program_branch = s.execute(
+            select(self.Branch, self.Program, self.ProgramBranch)
+            .join_from(self.Branch, self.ProgramBranch, self.Branch.branch_id == self.ProgramBranch.branch_id)
+            .join(self.Program, self.Program.program_id == self.ProgramBranch.program_id)
+        ).all()
+
+        values_cohort = []
+        for branch, program, program_branch in result_program_branch:
+            values_cohort.append(
+                {
+                    "program_id": program_branch.program_id,
+                    "branch_id": program_branch.branch_id,
+                    "name": f"{program.name} - {branch.city} - {program_branch.date_start:%Y}",
+                    "code": f"{program.code}{program_branch.date_start:%y}-{branch.city}",
+                    "date_start": program_branch.date_start,
+                    "date_end": program_branch.date_end,
+                }
+            )
+        
+        s.execute(insert(self.Cohort), values_cohort)
 
     def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
         return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
