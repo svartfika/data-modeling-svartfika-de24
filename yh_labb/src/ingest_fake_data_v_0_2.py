@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+import itertools
 import random
 from typing import Literal
 
@@ -8,7 +9,7 @@ from mimesis import Generic
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from sqlalchemy import URL, Engine, create_engine, select, insert
+from sqlalchemy import URL, Engine, and_, create_engine, select, insert
 from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.orm import Session
 
@@ -110,7 +111,7 @@ class DataIngestion:
             self._ingest_programs_courses(s)
             self._ingest_program_branch_junction(s)
             self._ingest_modules_semesters(s)
-            self._ingest_employee(s, "TEACHER", datetime.now().date())
+            self._ingest_techers(s)
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -234,6 +235,25 @@ class DataIngestion:
 
             s.execute(insert(self.CourseModule), values_course_module)
 
+    def _ingest_person(self, s: Session, n_persons: int = 1):
+        values_person = [
+            {
+                "last_name": self._fake.person.last_name(),
+                "first_name": self._fake.person.first_name(),
+                "identity_number": f"{self._fake.person.birthdate().strftime('%Y%m%d')}-{self._fake.person.identifier('####')}",
+                "address": self._fake.address.address(),
+                "phone": self._fake.person.phone_number(),
+                "email_private": self._fake.person.email(),
+            }
+            for _ in range(n_persons)
+        ]
+
+        result_person_ids = (
+            s.execute(insert(self.Person).returning(self.Person.person_id), values_person).scalars().all()
+        )
+
+        return result_person_ids
+
     def _ingest_employee(
         self,
         s: Session,
@@ -334,28 +354,64 @@ class DataIngestion:
             s.execute(insert(self.FullTime), values_full_time)
 
         if values_manager:
-            s.execute(insert(self.Manager), values_manager)
+            return s.execute(insert(self.Manager).returning(self.Manager.manager_id), values_manager).scalars().all()
         if values_teacher:
-            s.execute(insert(self.Teacher), values_teacher)
+            return s.execute(insert(self.Teacher).returning(self.Teacher.teacher_id), values_teacher).scalars().all()
 
-    def _ingest_person(self, s: Session, n_persons: int = 1):
-        values_person = [
-            {
-                "last_name": self._fake.person.last_name(),
-                "first_name": self._fake.person.first_name(),
-                "identity_number": f"{self._fake.person.birthdate().strftime('%Y%m%d')}-{self._fake.person.identifier('####')}",
-                "address": self._fake.address.address(),
-                "phone": self._fake.person.phone_number(),
-                "email_private": self._fake.person.email(),
-            }
-            for _ in range(n_persons)
-        ]
+    def _ingest_techers(self, s: Session, n_teachers_max: int = 1):
+        # query for all relevant data
 
-        result_person_ids = (
-            s.execute(insert(self.Person).returning(self.Person.person_id), values_person).scalars().all()
-        )
+        result_branch_program_module_course = s.execute(
+            select(
+                self.Branch,
+                self.Program,
+                self.ProgramBranch,
+                self.Module,
+                self.CourseModule,
+            )
+            .join_from(self.Branch, self.ProgramBranch, self.Branch.branch_id == self.ProgramBranch.branch_id)
+            .join(self.Program, self.Program.program_id == self.ProgramBranch.program_id)
+            .join(self.Module, self.Module.branch_id == self.Branch.branch_id)
+            .join(self.CourseModule, self.CourseModule.module_id == self.Module.module_id)
+            .join(
+                self.Course,
+                and_(
+                    self.Course.course_id == self.CourseModule.course_id,
+                    self.Course.program_id == self.Program.program_id,
+                ),
+            )
+        ).all()
 
-        return result_person_ids
+        # iterate over branch-program
+
+        branch_program_pairs = {
+            (row[0], row[1], row[2].date_start, row[2].date_end) for row in result_branch_program_module_course
+        }
+
+        for branch, program, program_date_start, program_date_end in branch_program_pairs:
+            # ingest n teacher(s)
+
+            n_teachers = random.randint(1, n_teachers_max)
+            result_teachers_ids = self._ingest_employee(s, "TEACHER", program_date_start, n_employees=n_teachers)
+
+            # ingest teacher many-to-many course junction table
+
+            courses_ids = [
+                (row[4].course_module_id, row[4].date_start)
+                for row in result_branch_program_module_course
+                if row[0].branch_id == branch.branch_id and row[1].program_id == program.program_id
+            ]
+
+            values_teacher_course_module_ids = [
+                {
+                    "teacher_id": teacher_id,
+                    "course_module_id": course_module_id,
+                    "date_start": date_start,
+                }
+                for teacher_id, (course_module_id, date_start) in zip(itertools.cycle(result_teachers_ids), courses_ids)
+            ]
+
+            s.execute(insert(self.TeacherCourse), values_teacher_course_module_ids)
 
     def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
         return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
