@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 import random
+from typing import Literal
 
 from seed_data import BRANCHES, PROGRAMS_COURSES, SEMESTERS
 
@@ -109,6 +110,7 @@ class DataIngestion:
             self._ingest_programs_courses(s)
             self._ingest_program_branch_junction(s)
             self._ingest_modules_semesters(s)
+            self._ingest_employee(s, "TEACHER", datetime.now().date())
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -145,13 +147,15 @@ class DataIngestion:
         for seed_data in PROGRAMS_COURSES:
             program_id = programs_map[seed_data["code"]]
             for course in seed_data["courses"]:
-                values_courses.append({
-                    "program_id": program_id,
-                    "name": course["name"],
-                    "code": course["code"],
-                    "credits": self._fake.random.randint(10, 100),
-                    "description": self._fake.text.sentence(),
-                })
+                values_courses.append(
+                    {
+                        "program_id": program_id,
+                        "name": course["name"],
+                        "code": course["code"],
+                        "credits": self._fake.random.randint(10, 100),
+                        "description": self._fake.text.sentence(),
+                    }
+                )
 
         s.execute(
             insert(self.Course),
@@ -163,12 +167,14 @@ class DataIngestion:
 
         for branch_id in s.scalars(select(self.Branch.branch_id)).all():
             for program_id in s.scalars(select(self.Program.program_id)).all():
-                values_junction.append({
-                    "program_id": program_id,
-                    "branch_id": branch_id,
-                    "date_start": SEMESTERS["HT24"]["date_start"],
-                    "date_end": SEMESTERS["VT26"]["date_end"],
-                })
+                values_junction.append(
+                    {
+                        "program_id": program_id,
+                        "branch_id": branch_id,
+                        "date_start": SEMESTERS["HT24"]["date_start"],
+                        "date_end": SEMESTERS["VT26"]["date_end"],
+                    }
+                )
 
         s.execute(
             insert(self.ProgramBranch),
@@ -224,15 +230,129 @@ class DataIngestion:
 
             s.execute(insert(self.CourseModule), values_course_module)
 
-    def _build_person(self) -> dict:
-        return {
-            "last_name": self._fake.person.last_name(),
-            "first_name": self._fake.person.first_name(),
-            "identity_number": f"{self._fake.person.birthdate().strftime('%Y%m%d')}-{self._fake.person.identifier('####')}",
-            "address": self._fake.address.address(),
-            "phone": self._fake.person.phone_number(),
-            "email_private": self._fake.person.email(),
-        }
+    def _ingest_employee(
+        self,
+        s: Session,
+        affiliation_role_name: Literal["EMPLOYEE", "MANAGER", "TEACHER"],
+        date_start: date,
+        # date_end: date | None = None,
+        n_employees: int = 10,
+    ):
+        result_persons_ids = self._ingest_person(s, n_employees)
+
+        # ingest affiliation
+
+        affiliation_role_map = self._create_lookup_map(s, self.AffiliationRole, value_field="affiliation_role_id")
+
+        values_affiliation = [
+            {
+                "person_id": person_id,
+                "affiliation_role_id": affiliation_role_map[affiliation_role_name],
+                "date_start": date_start,
+                # "date_end": None,
+            }
+            for person_id in result_persons_ids
+        ]
+
+        result_affiliations_ids = (
+            s.execute(insert(self.Affiliation).returning(self.Affiliation.affiliation_id), values_affiliation)
+            .scalars()
+            .all()
+        )
+
+        # ingest employment
+
+        employment_category_id_map = self._create_lookup_map(
+            s, self.EmploymentCategory, value_field="employment_category_id"
+        )
+
+        values_employment = [
+            {
+                "affiliation_id": affiliation_id,
+                "employment_category_id": employment_category_id_map[
+                    self._fake.random.choice(["CONSULTANT", "FULL_TIME"])
+                ],
+                "date_start": date_start,
+                # "date_end": None,
+            }
+            for affiliation_id in result_affiliations_ids
+        ]
+
+        result_employments_ids = (
+            s.execute(insert(self.Employment).returning(self.Employment.employment_id), values_employment)
+            .scalars()
+            .all()
+        )
+
+        # ingest employment category data, employment role
+
+        employment_category_name_map = self._create_lookup_map(
+            s, self.EmploymentCategory, key_field="employment_category_id", value_field="name"
+        )
+
+        values_consultant = []
+        values_full_time = []
+        values_manager = []
+        values_teacher = []
+
+        for employment_id, value_employment in zip(result_employments_ids, values_employment):
+            employment_category_id = employment_category_name_map.get(value_employment["employment_category_id"])
+
+            if employment_category_id == "CONSULTANT":
+                values_consultant.append(
+                    {
+                        "employment_id": employment_id,
+                        "org_name": self._fake.finance.company(),
+                        "org_number": self._fake.random.generate_string_by_mask("######-####"),
+                        "f_skatt": self._fake.development.boolean(),
+                        "rate_hourly": self._fake.random.randint(500, 1500),
+                    }
+                )
+            elif employment_category_id == "FULL_TIME":
+                values_full_time.append(
+                    {
+                        "employment_id": employment_id,
+                        "salary_monthly": self._fake.random.randint(25000, 55000),
+                        "hours_weekly": self._fake.random.randint(20, 40),
+                    }
+                )
+
+            if affiliation_role_name == "MANAGER":
+                values_manager.append({"employment_id": employment_id})
+            elif affiliation_role_name == "TEACHER":
+                values_teacher.append({"employment_id": employment_id})
+
+        if values_consultant:
+            s.execute(insert(self.Consultant), values_consultant)
+        if values_full_time:
+            s.execute(insert(self.FullTime), values_full_time)
+
+        if values_manager:
+            s.execute(insert(self.Manager), values_manager)
+        if values_teacher:
+            s.execute(insert(self.Teacher), values_teacher)
+
+    def _ingest_person(self, s: Session, n_persons: int = 1):
+        values_person = [
+            {
+                "last_name": self._fake.person.last_name(),
+                "first_name": self._fake.person.first_name(),
+                "identity_number": f"{self._fake.person.birthdate().strftime('%Y%m%d')}-{self._fake.person.identifier('####')}",
+                "address": self._fake.address.address(),
+                "phone": self._fake.person.phone_number(),
+                "email_private": self._fake.person.email(),
+            }
+            for _ in range(n_persons)
+        ]
+
+        result_person_ids = (
+            s.execute(insert(self.Person).returning(self.Person.person_id), values_person).scalars().all()
+        )
+
+        return result_person_ids
+
+    def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
+        return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
 
     def _divide_date_interval(self, start_date: date, end_date: date, x: int):
         interval = (end_date - start_date).days / x
