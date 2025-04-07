@@ -107,6 +107,7 @@ class DataIngestion:
             self._ingest_cohorts(s)
             self._ingest_managers(s)
             self._ingest_students(s)
+            self._ingest_student_course_junction(s)
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -207,11 +208,25 @@ class DataIngestion:
                     }
                 )
 
-            result_modules_ids = (
-                s.execute(insert(self.Module).returning(self.Module.module_id), values_semester).scalars().all()
-            )
+            result_modules = s.execute(insert(self.Module).returning(self.Module), values_semester).scalars().all()
 
-            # ingest course many-to-many module junction table
+            # ingest module program junction table
+
+            values_module_program = [
+                {
+                    "module_id": module.module_id,
+                    "program_id": program.program_id,
+                    "date_start": module.date_start,
+                    "date_end": module.date_end,
+                }
+                for module in result_modules
+            ]
+
+            s.execute(insert(self.ModuleProgram), values_module_program)
+
+            # ingest course module junction table
+
+            result_modules_ids = [r.module_id for r in result_modules]
 
             values_course_module = []
             for value_module_id, value_semster in zip(result_modules_ids, values_semester):
@@ -509,9 +524,7 @@ class DataIngestion:
             for cohort, affiliation in zip(cycle_result_cohort, result_affiliation)
         ]
 
-        result_student = (
-            s.execute(insert(self.Student).returning(self.Student), values_student).scalars().all()
-        )
+        result_student = s.execute(insert(self.Student).returning(self.Student), values_student).scalars().all()
 
         # ingest student cohort junction table
 
@@ -527,6 +540,19 @@ class DataIngestion:
 
         s.execute(insert(self.StudentCohort).returning(self.StudentCohort), values_student_cohort)
 
+    def _ingest_student_course_junction(self, s: Session):
+        result_cohort_courses = s.execute(
+            select(
+                self.StudentCohort.student_id,
+                self.CourseModule.course_module_id,
+            )
+            .join_from(self.CourseModule, self.Module, self.CourseModule.module_id == self.Module.module_id)
+            .join(self.ModuleProgram, self.Module.module_id == self.ModuleProgram.module_id)
+            .join(self.Cohort, self.Module.branch_id == self.Cohort.branch_id)
+            .where(self.Cohort.program_id == self.ModuleProgram.program_id)
+            .join(self.StudentCohort, self.Cohort.cohort_id == self.StudentCohort.cohort_id)
+            .order_by(self.StudentCohort.student_id, self.CourseModule.course_module_id)
+        ).all()
 
     def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
         return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
