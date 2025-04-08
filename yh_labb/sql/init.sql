@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS yh.person (
 
 CREATE TABLE IF NOT EXISTS yh.affiliation_role (
     affiliation_role_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name varchar(100) NOT NULL UNIQUE,
+    name varchar(100) NOT NULL UNIQUE
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.affiliation (
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS yh.affiliation (
 
 CREATE TABLE IF NOT EXISTS yh.employment_category (
     employment_category_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name varchar(100) NOT NULL UNIQUE,
+    name varchar(100) NOT NULL UNIQUE
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.employment (
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS yh.course (
 
 CREATE TABLE IF NOT EXISTS yh.module_type (
     module_type_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name varchar(100) NOT NULL UNIQUE,
+    name varchar(100) NOT NULL UNIQUE
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.module (
@@ -145,6 +145,11 @@ CREATE TABLE IF NOT EXISTS yh.student (
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (affiliation_id, email_internal)
+) ;
+
+CREATE TABLE IF NOT EXISTS yh.grade_type (
+    grade_code varchar(2) PRIMARY KEY,
+    passed boolean NOT NULL
 ) ;
 
 
@@ -193,6 +198,7 @@ CREATE TABLE IF NOT EXISTS yh.student_course (
     student_course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     student_id bigint NOT NULL REFERENCES yh.student (student_id) ON DELETE CASCADE,
     course_module_id bigint NOT NULL REFERENCES yh.course_module (course_module_id) ON DELETE CASCADE,
+    grade_code varchar(2) REFERENCES yh.grade_type (grade_code) ON DELETE RESTRICT,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (student_id, course_module_id, date_start)
@@ -218,8 +224,6 @@ CREATE TABLE IF NOT EXISTS yh.student_cohort (
     UNIQUE (student_id, cohort_id, date_start)
 ) ;
 
-
-
 -- DEFAULT VALUES
 
 INSERT INTO yh.affiliation_role (name) 
@@ -233,3 +237,7 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO yh.module_type (name) 
 VALUES ('EXTRA'), ('SEMESTER'), ('WORKSHOP')
 ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO yh.grade_type (grade_code, passed) 
+VALUES ('IG', false), ('G', true), ('VG', true)
+ON CONFLICT (grade_code) DO NOTHING;
