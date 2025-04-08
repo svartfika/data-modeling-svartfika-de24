@@ -9,7 +9,7 @@ from mimesis import Generic
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from sqlalchemy import URL, Engine, and_, create_engine, select, insert
+from sqlalchemy import URL, Engine, and_, case, create_engine, insert, select, update
 from sqlalchemy.ext.automap import automap_base, AutomapBase
 from sqlalchemy.orm import Session
 
@@ -108,6 +108,7 @@ class DataIngestion:
             self._ingest_managers(s)
             self._ingest_students(s)
             self._ingest_student_course_junction(s)
+            self._ingest_grades(s)
             s.commit()
 
     def _ingest_branches(self, s: Session):
@@ -116,7 +117,6 @@ class DataIngestion:
                 "name": seed_data["name"],
                 "city": seed_data["city"],
                 "address": self._fake.address.address(),
-                "description": self._fake.text.sentence(),
             }
             for seed_data in BRANCHES
         ]
@@ -517,7 +517,6 @@ class DataIngestion:
         values_student = [
             {
                 "affiliation_id": affiliation.affiliation_id,
-                "program_id": cohort.program_id,
                 "email_internal": self._fake.person.email(),
                 "date_start": affiliation.date_start,
                 "date_end": affiliation.date_end,
@@ -571,6 +570,28 @@ class DataIngestion:
 
         s.execute(insert(self.StudentCourse), values_student_course)
 
+    def _ingest_grades(self, s: Session):
+        result_student_course = s.execute(select(self.StudentCourse.student_course_id)).scalars().all()
+
+        # ingest grades in chunks
+
+        chunk_size = 1000
+        for i in range(0, len(result_student_course), chunk_size):
+            chunk_ids = result_student_course[i : i + chunk_size]
+
+            # prepare case statement to match each row
+
+            values_whens = []
+            for student_course_id, grade_code in zip(chunk_ids, self._grade_generator(chunk_size)):
+                values_whens.append((self.StudentCourse.student_course_id == student_course_id, grade_code))
+
+            s.execute(
+                update(self.StudentCourse)
+                .where(self.StudentCourse.student_course_id.in_(chunk_ids))
+                .values(grade_code=case(*values_whens))
+                .execution_options(synchronize_session=False)
+            )
+
     def _create_lookup_map(self, s: Session, model_class, key_field="name", value_field="id") -> dict:
         return {getattr(obj, key_field): getattr(obj, value_field) for obj in s.scalars(select(model_class)).all()}
 
@@ -584,11 +605,18 @@ class DataIngestion:
             for i in range(x)
         ]
 
+    def _grade_generator(self, count: int | None = None):
+        i = 0
+        while count is None or i < count:
+            yield self._fake.random.weighted_choice({"IG": 0.1, "G": 0.6, "VG": 0.3})
+            i += 1
+
 
 def main():
     engine = create_engine(POSTGRES_URL)
     genrate_fake_data = DataIngestion(engine)
     genrate_fake_data.ingest()
+
 
 if __name__ == "__main__":
     main()
