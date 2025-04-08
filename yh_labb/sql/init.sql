@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS yh.person (
 CREATE TABLE IF NOT EXISTS yh.affiliation_role (
     affiliation_role_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name varchar(100) NOT NULL UNIQUE,
-    description text
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.affiliation (
@@ -36,7 +35,6 @@ CREATE TABLE IF NOT EXISTS yh.affiliation (
 CREATE TABLE IF NOT EXISTS yh.employment_category (
     employment_category_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name varchar(100) NOT NULL UNIQUE,
-    description text
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.employment (
@@ -86,7 +84,6 @@ CREATE TABLE IF NOT EXISTS yh.branch (
     name varchar(100) NOT NULL,
     city varchar(100) NOT NULL,
     address varchar(100),
-    description text,
     UNIQUE (name, city)
 ) ;
 
@@ -114,7 +111,6 @@ CREATE TABLE IF NOT EXISTS yh.course (
 CREATE TABLE IF NOT EXISTS yh.module_type (
     module_type_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name varchar(100) NOT NULL UNIQUE,
-    description text
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.module (
@@ -185,7 +181,7 @@ CREATE TABLE IF NOT EXISTS yh.course_module (
 
 
 CREATE TABLE IF NOT EXISTS yh.teacher_course (
-    course_teacher_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    teacher_course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     teacher_id bigint NOT NULL REFERENCES yh.teacher (teacher_id) ON DELETE CASCADE,
     course_module_id bigint NOT NULL REFERENCES yh.course_module (course_module_id) ON DELETE CASCADE,
     date_start date NOT NULL,
