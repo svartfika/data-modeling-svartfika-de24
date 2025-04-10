@@ -1,27 +1,72 @@
----
-    config:
-        layout: elk
----
+```mermaid
 erDiagram
-direction TB
-    BRANCH  ||--|{ MODULE : "hosts"
-    BRANCH  }o--o{ PROGRAM : "offers"
-    PROGRAM ||--o{ MODULE : "includes"
-    MODULE  ||--|{ COURSE : "contains"
+    PERSON ||--o{ AFFILIATION : "has"
+    "AFFILIATION ROLE" ||--|{ AFFILIATION : "defines"
+    AFFILIATION ||--o{ STUDENT : "can be"
+    AFFILIATION ||--o{ EMPLOYMENT : "can be"
 
-    PERSON      ||--|| AFFILIATION : "has"
-    AFFILIATION ||--|{ EMPLOYEE : "role defined as"
-    AFFILIATION ||--|{ STUDENT : "role defined as"
+    "EMPLOYMENT TYPE" ||--|{ EMPLOYMENT : "classifies"
+    EMPLOYMENT ||--o| TEACHER : "can be"
+    EMPLOYMENT ||--o| MANAGER : "can be"
+```
 
-    BRANCH   ||--o{ EMPLOYEE : "employs"
-    EMPLOYEE ||--o| TEACHER : "is"
-    EMPLOYEE ||--o| MANAGER : "is"
+```mermaid
+erDiagram
+    PROGRAM }o--o{ BRANCH : "offered at"
 
-    EMPLOYEE ||--o| CONSULTANT : "is classified as"
-    EMPLOYEE ||--o| FULL-TIME : "is classified as"
+    BRANCH ||--|{ MODULE : "hosts"
+    "MODULE TYPE" ||--|{ MODULE : "classifies"
+    PROGRAM }o--o{ MODULE : "includes"
 
-    MANAGER  ||--|{ PROGRAM : "manages"
-    TEACHER  ||--o{ COURSE : "teaches"
+    PROGRAM ||--o{ COURSE : "defines"
+    COURSE ||--|{ "COURSE OFFERING" : "defines"
+    MODULE ||--|{ "COURSE OFFERING" : "contains"
+```
 
-    PROGRAM  |o--o{ STUDENT : "has enrolled"
-    STUDENT  }o--o{ COURSE : "participate in"
+```mermaid
+erDiagram
+    BRANCH ||--|{ MODULE : "hosts"
+    MODULE ||--|{ "COURSE OFFERING" : "contains"
+
+    STUDENT }o--o{ "COURSE OFFERING" : "enrolls in"
+    TEACHER }o--o{ "COURSE OFFERING" : "teaches"
+    "GRADE DEFINITION" ||--|{ "COURSE OFFERING" : "uses"
+
+    PROGRAM ||--|{ COHORT : "groups"
+    BRANCH ||--|{ COHORT : "hosts"
+    STUDENT }o--o{ COHORT : "member of"
+
+    MANAGER }o--o{ COHORT : "manages"
+```
+
+---
+
+```mermaid
+erDiagram
+    PERSON ||--o{ AFFILIATION : "has"
+    "AFFILIATION ROLE" ||--|{ AFFILIATION : "defines"
+    AFFILIATION ||--o{ STUDENT : "can be"
+    AFFILIATION ||--o{ EMPLOYMENT : "can be"
+
+    "EMPLOYMENT TYPE" ||--|{ EMPLOYMENT : "classifies"
+    EMPLOYMENT ||--o| TEACHER : "can be"
+    EMPLOYMENT ||--o| MANAGER : "can be"
+
+    PROGRAM }o--o{ BRANCH : "offered at"
+    BRANCH ||--|{ MODULE : "hosts"
+    "MODULE TYPE" ||--|{ MODULE : "classifies"
+    PROGRAM }o--o{ MODULE : "includes"
+
+    PROGRAM ||--o{ COURSE : "defines"
+    COURSE ||--|{ "COURSE OFFERING" : "defines "
+    MODULE ||--|{ "COURSE OFFERING" : "hosts"
+
+    STUDENT }o--o{ "COURSE OFFERING" : "enrolls in"
+    TEACHER }o--o{ "COURSE OFFERING" : "teaches"
+    "GRADE DEFINITION" ||--|{ "COURSE OFFERING" : "uses"
+
+    PROGRAM ||--|{ COHORT : "groups"
+    BRANCH ||--|{ COHORT : "hosts"
+    STUDENT }o--o{ COHORT : "member of"
+    MANAGER }o--o{ COHORT : "manages"
+```
