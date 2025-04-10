@@ -414,3 +414,37 @@ erDiagram
     PROGRAM  |o--o{ STUDENT : "has enrolled"
     STUDENT  }o--o{ COURSE : "participate in"
 ```
+
+---
+
+#### Update to relfect changes in physical/logical
+
+```mermaid
+erDiagram
+    PERSON ||--o{ AFFILIATION : "has"
+    "AFFILIATION ROLE" ||--|{ AFFILIATION : "defines"
+    AFFILIATION ||--o{ STUDENT : "can be"
+    AFFILIATION ||--o{ EMPLOYMENT : "can be"
+
+    "EMPLOYMENT TYPE" ||--|{ EMPLOYMENT : "classifies"
+    EMPLOYMENT ||--o| TEACHER : "can be"
+    EMPLOYMENT ||--o| MANAGER : "can be"
+
+    PROGRAM }o--o{ BRANCH : "offered at"
+    BRANCH ||--|{ MODULE : "hosts"
+    "MODULE TYPE" ||--|{ MODULE : "classifies"
+    PROGRAM }o--o{ MODULE : "includes"
+
+    PROGRAM ||--o{ COURSE : "defines"
+    COURSE ||--|{ "COURSE OFFERING" : "defines "
+    MODULE ||--|{ "COURSE OFFERING" : "hosts"
+
+    STUDENT }o--o{ "COURSE OFFERING" : "enrolls in"
+    TEACHER }o--o{ "COURSE OFFERING" : "teaches"
+    "GRADE DEFINITION" ||--|{ "COURSE OFFERING" : "uses"
+
+    PROGRAM ||--|{ COHORT : "groups"
+    BRANCH ||--|{ COHORT : "hosts"
+    STUDENT }o--o{ COHORT : "member of"
+    MANAGER }o--o{ COHORT : "manages"
+```
