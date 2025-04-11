@@ -102,7 +102,7 @@ PROGRAMS_COURSES = [
 SEMESTERS = {
     "HT24": {
         "date_start": date(2024, 8, 18),
-        "date_end": date(2025, 12, 22),
+        "date_end": date(2024, 12, 22),
     },
     "VT25": {
         "date_start": date(2025, 1, 6),
