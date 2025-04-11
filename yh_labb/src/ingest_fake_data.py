@@ -110,7 +110,7 @@ class DataIngestion:
             self._ingest_students(s)
             self._ingest_student_course_junction(s)
             self._ingest_grades(s)
-            # s.commit()
+            s.commit()
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -182,12 +182,14 @@ class DataIngestion:
         s.execute(insert(self.ProgramCourse), values_junction)
 
     def _ingest_program_branch_junction(self, s: Session):
-        # ingest program many-to-many branch junction table
+        # ingest 3 random programs to program many-to-many branch junction table
+
+        result_branch_ids = s.scalars(select(self.Branch.branch_id).where(self.Branch.name != "ONLINE")).all()
 
         values_junction = []
-
-        for branch_id in s.scalars(select(self.Branch.branch_id)).all():
-            for program_id in s.scalars(select(self.Program.program_id)).all():
+        for branch_id in result_branch_ids:
+            result_program_ids = s.scalars(select(self.Program.program_id)).all()
+            for program_id in random.sample(result_program_ids, 3):
                 values_junction.append(
                     {
                         "program_id": program_id,
