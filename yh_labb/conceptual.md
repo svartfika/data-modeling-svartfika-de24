@@ -18,8 +18,8 @@ erDiagram
     "MODULE TYPE" ||--|{ MODULE : "classifies"
     PROGRAM }o--o{ MODULE : "includes"
 
-    PROGRAM ||--o{ COURSE : "defines"
-    COURSE ||--|{ "COURSE OFFERING" : "defines"
+    PROGRAM }o--o{ COURSE : "defines"
+    COURSE ||--o{ "COURSE OFFERING" : "defines"
     MODULE ||--|{ "COURSE OFFERING" : "contains"
 ```
 
@@ -57,8 +57,8 @@ erDiagram
     "MODULE TYPE" ||--|{ MODULE : "classifies"
     PROGRAM }o--o{ MODULE : "includes"
 
-    PROGRAM ||--o{ COURSE : "defines"
-    COURSE ||--|{ "COURSE OFFERING" : "defines "
+    PROGRAM }o--o{ COURSE : "defines"
+    COURSE ||--o{ "COURSE OFFERING" : "defines "
     MODULE ||--|{ "COURSE OFFERING" : "hosts"
 
     STUDENT }o--o{ "COURSE OFFERING" : "enrolls in"

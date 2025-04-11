@@ -11,7 +11,8 @@ erDiagram
     employment ||--o| teacher : is
     employment ||--o| manager : is
 
-    program ||--o{ course : "includes"
+    program }o--o{ program_course : "contains"
+    course  }o--o{ program_course : "part of"
     program ||--o{ program_branch : includes
     branch ||--o{ program_branch : hosts
     branch ||--o{ module : hosts
@@ -158,6 +159,12 @@ erDiagram
         STRING code
         INTEGER credits
         STRING description
+    }
+
+    program_course {
+        INTEGER program_course_id PK
+        INTEGER program_id FK
+        INTEGER course_id FK
     }
 
     course_module {

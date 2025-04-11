@@ -11,7 +11,8 @@ erDiagram
     employment ||--o| teacher : is
     employment ||--o| manager : is
 
-    program ||--o{ course : "includes"
+    program }o--o{ program_course : "contains"
+    course  }o--o{ program_course : "part of"
     program ||--o{ program_branch : includes
     branch ||--o{ program_branch : hosts
     branch ||--o{ module : hosts
@@ -167,7 +168,6 @@ erDiagram
 
     course {
         BIGINT course_id PK
-        BIGINT program_id FK "NOT NULL"
         VARCHAR name "NOT NULL"
         VARCHAR code "NOT NULL"
         SMALLINT credits "NOT NULL"
@@ -191,6 +191,13 @@ erDiagram
         DATE date_start "NOT NULL"
         DATE date_end
         _ UNIQUE "(teacher_id, course_module_id, date_start)"
+    }
+
+    program_course {
+        BIGINT program_course_id PK
+        BIGINT program_id FK "NOT NULL"
+        BIGINT course_id FK "NOT NULL"
+        _ UNIQUE "(program_id, course_id)"
     }
 
     student_course {
