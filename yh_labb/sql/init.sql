@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS yh.affiliation (
     affiliation_role_id bigint NOT NULL REFERENCES yh.affiliation_role (affiliation_role_id) ON DELETE RESTRICT,
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
-    UNIQUE (person_id, affiliation_role_id)
+    UNIQUE (date_start, person_id, affiliation_role_id)
 ) ;
 
 
