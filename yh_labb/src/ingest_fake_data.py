@@ -79,6 +79,7 @@ class DataIngestion:
         self.ModuleType = self.Base.classes.module_type
         self.Module = self.Base.classes.module
         self.Course = self.Base.classes.course
+        self.ProgramCourse = self.Base.classes.program_course
 
         self.Cohort = self.Base.classes.cohort
         self.Student = self.Base.classes.student
@@ -109,7 +110,7 @@ class DataIngestion:
             self._ingest_students(s)
             self._ingest_student_course_junction(s)
             self._ingest_grades(s)
-            s.commit()
+            # s.commit()
 
     def _ingest_branches(self, s: Session):
         values = [
@@ -144,22 +145,41 @@ class DataIngestion:
 
         # ingest courses
 
+        course_program_map = {}
         values_courses = []
 
         for seed_data in PROGRAMS_COURSES:
             program_id = programs_map[seed_data["code"]]
+
             for course in seed_data["courses"]:
+                course_code = course["code"]
                 values_courses.append(
                     {
-                        "program_id": program_id,
                         "name": course["name"],
-                        "code": course["code"],
+                        "code": course_code,
                         "credits": self._fake.random.randint(10, 100),
                         "description": self._fake.text.sentence(),
                     }
                 )
+                course_program_map[course_code] = program_id
 
-        s.execute(insert(self.Course), values_courses)
+        result_courses = s.execute(
+            insert(self.Course).returning(self.Course.course_id, self.Course.code), values_courses
+        )
+
+        # ingest program course junction table
+
+        values_junction = []
+        for course_id, course_code in result_courses:
+            program_id = course_program_map.get(course_code)
+            values_junction.append(
+                {
+                    "program_id": program_id,
+                    "course_id": course_id,
+                }
+            )
+
+        s.execute(insert(self.ProgramCourse), values_junction)
 
     def _ingest_program_branch_junction(self, s: Session):
         # ingest program many-to-many branch junction table
@@ -192,7 +212,9 @@ class DataIngestion:
 
         for branch, program in result_branch_program:
             result_program_course = s.scalars(
-                select(self.Course).where(self.Course.program_id == program.program_id)
+                select(self.Course)
+                .join(self.ProgramCourse, self.Course.course_id == self.ProgramCourse.course_id)
+                .where(self.ProgramCourse.program_id == program.program_id)
             ).all()
 
             values_semester = []
@@ -384,10 +406,10 @@ class DataIngestion:
             .join(self.Module, self.Module.branch_id == self.Branch.branch_id)
             .join(self.CourseModule, self.CourseModule.module_id == self.Module.module_id)
             .join(
-                self.Course,
+                self.ProgramCourse,
                 and_(
-                    self.Course.course_id == self.CourseModule.course_id,
-                    self.Course.program_id == self.Program.program_id,
+                    self.ProgramCourse.course_id == self.CourseModule.course_id,
+                    self.ProgramCourse.program_id == self.Program.program_id,
                 ),
             )
         ).all()
