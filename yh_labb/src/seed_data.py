@@ -89,7 +89,7 @@ PROGRAMS_COURSES = [
             },
             {
                 "name": "OOP, datastrukturer, algoritmer och design",
-                "code": "OP",
+                "code": "DS",
             },
             {
                 "name": "Webbkommunikation, APIer och backend",
