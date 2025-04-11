@@ -249,3 +249,7 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO yh.grade_type (grade_code, passed) 
 VALUES ('IG', false), ('G', true), ('VG', true)
 ON CONFLICT (grade_code) DO NOTHING;
+
+INSERT INTO yh.branch (name, city) 
+VALUES ('ONLINE', 'ONLINE')
+ON CONFLICT (name) DO NOTHING;
