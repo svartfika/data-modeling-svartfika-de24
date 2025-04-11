@@ -98,12 +98,11 @@ CREATE TABLE IF NOT EXISTS yh.program (
 
 CREATE TABLE IF NOT EXISTS yh.course (
     course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    program_id bigint NOT NULL REFERENCES yh.program (program_id) ON DELETE RESTRICT,
     name varchar(100) NOT NULL,
     code varchar(100) NOT NULL,
     credits smallint NOT NULL,
     description text,
-    UNIQUE (program_id, code)
+    UNIQUE (code)
 ) ;
 
 
@@ -172,6 +171,15 @@ CREATE TABLE IF NOT EXISTS yh.module_program (
     date_start date NOT NULL,
     date_end date CHECK (date_end IS NULL OR date_end > date_start),
     UNIQUE (module_id, program_id, date_start)
+) ;
+
+
+
+CREATE TABLE IF NOT EXISTS yh.program_course (
+    program_course_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    program_id bigint NOT NULL REFERENCES yh.program (program_id) ON DELETE CASCADE,
+    course_id bigint NOT NULL REFERENCES yh.course (course_id) ON DELETE CASCADE,
+    UNIQUE (program_id, course_id)
 ) ;
 
 CREATE TABLE IF NOT EXISTS yh.course_module (
