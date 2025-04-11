@@ -11,6 +11,7 @@ erDiagram
     employment ||--o| teacher : is
     employment ||--o| manager : is
 
+    program ||--o{ course : "includes"
     program ||--o{ program_branch : includes
     branch ||--o{ program_branch : hosts
     branch ||--o{ module : hosts
